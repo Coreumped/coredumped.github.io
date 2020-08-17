@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+
+  
+  <title>Innodb系统表-结构解析 | 随便写写</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="description" content="Innodb系统表-结构解析  MySQL中在information_schema下， 有几张’INNODB_SYS%’命名的系统表，其中记录了当前实例下Inoodb存储的表和索引等信息，也称之为数据字典，这些内容存储在ibdata1系统表空间文件中。在某些情况下，没有了.frm文件，也可以读取ibdata1文件获取对应的表结构。本文即介绍一下系统表空间结构及如何读取ibdata文件。  [TOC">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Innodb系统表-结构解析">
+<meta property="og:url" content="http://yoursite.com/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/index.html">
+<meta property="og:site_name" content="随便写写">
+<meta property="og:description" content="Innodb系统表-结构解析  MySQL中在information_schema下， 有几张’INNODB_SYS%’命名的系统表，其中记录了当前实例下Inoodb存储的表和索引等信息，也称之为数据字典，这些内容存储在ibdata1系统表空间文件中。在某些情况下，没有了.frm文件，也可以读取ibdata1文件获取对应的表结构。本文即介绍一下系统表空间结构及如何读取ibdata文件。  [TOC">
+<meta property="og:locale">
+<meta property="og:image" content="http://yoursite.com/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/ibdata1_file_overview.jpg">
+<meta property="og:image" content="http://yoursite.com/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/FIL_PAGE_TYPE_SYS.jpg">
+<meta property="og:image" content="http://yoursite.com/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/index_overview.jpg">
+<meta property="og:image" content="http://yoursite.com/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/index_header.jpg">
+<meta property="og:image" content="http://yoursite.com/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/index_page_directory.jpg">
+<meta property="og:image" content="http://yoursite.com/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/page_directory_structure.jpg">
+<meta property="og:image" content="http://yoursite.com/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/record_format.jpg">
+<meta property="og:image" content="http://yoursite.com/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/slot_offset.jpg">
+<meta property="og:image" content="http://yoursite.com/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/record_header.jpg">
+<meta property="og:image" content="http://yoursite.com/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/record_header2.jpg">
+<meta property="og:image" content="http://yoursite.com/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/record_struct.jpg">
+<meta property="og:image" content="http://yoursite.com/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/sys_tables1.jpg">
+<meta property="og:image" content="http://yoursite.com/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/flags1.jpg">
+<meta property="og:image" content="http://yoursite.com/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/flags2.jpg">
+<meta property="article:published_time" content="2020-08-17T07:25:56.000Z">
+<meta property="article:modified_time" content="2020-08-17T09:50:40.395Z">
+<meta property="article:author" content="Dong Hong Yu">
+<meta property="article:tag" content="Innodb">
+<meta property="article:tag" content="MySQL">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/ibdata1_file_overview.jpg">
+  
+    <link rel="alternate" href="/atom.xml" title="随便写写" type="application/atom+xml">
+  
+  
+    <link rel="icon" href="/favicon.png">
+  
+  
+    <link href="//fonts.googleapis.com/css?family=Source+Code+Pro" rel="stylesheet" type="text/css">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 5.0.2"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">随便写写</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://yoursite.com"></form>
+      </div>
+    </div>
+  </div>
+</header>
+      <div class="outer">
+        <section id="main"><article id="post-Innodb系统表-结构解析" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/" class="article-date">
+  <time datetime="2020-08-17T07:25:56.000Z" itemprop="datePublished">2020-08-17</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      Innodb系统表-结构解析
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h1 id="Innodb系统表-结构解析"><a href="#Innodb系统表-结构解析" class="headerlink" title="Innodb系统表-结构解析"></a>Innodb系统表-结构解析</h1><blockquote>
+<p> MySQL中在information_schema下， 有几张’INNODB_SYS%’命名的系统表，其中记录了当前实例下Inoodb存储的表和索引等信息，也称之为数据字典，这些内容存储在ibdata1系统表空间文件中。在某些情况下，没有了.frm文件，也可以读取ibdata1文件获取对应的表结构。本文即介绍一下系统表空间结构及如何读取ibdata文件。</p>
+</blockquote>
+<p>[TOC]</p>
+<h2 id="基本文件结构介绍"><a href="#基本文件结构介绍" class="headerlink" title="基本文件结构介绍"></a>基本文件结构介绍</h2><h3 id="数据页组成及类型"><a href="#数据页组成及类型" class="headerlink" title="数据页组成及类型"></a>数据页组成及类型</h3><p>数据文件和系统文件都是由多个数据页组成，每个数据页16K(默认)，每个数据页都有不同的作用，有以下几种类型(storage/innobase/include/fil0fil.h):</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/** File page types (values of FIL_PAGE_TYPE) @&#123; */</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> FIL_PAGE_INDEX 17855 <span class="comment">/*!&lt; B-tree node */</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> FIL_PAGE_RTREE 17854 <span class="comment">/*!&lt; B-tree node */</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> FIL_PAGE_UNDO_LOG 2 <span class="comment">/*!&lt; Undo log page */</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> FIL_PAGE_INODE 3 <span class="comment">/*!&lt; Index node */</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> FIL_PAGE_IBUF_FREE_LIST 4 <span class="comment">/*!&lt; Insert buffer free list */</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">/* File page types introduced in MySQL/InnoDB 5.1.7 */</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> FIL_PAGE_TYPE_ALLOCATED 0 <span class="comment">/*!&lt; Freshly allocated page */</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> FIL_PAGE_IBUF_BITMAP 5 <span class="comment">/*!&lt; Insert buffer bitmap */</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> FIL_PAGE_TYPE_SYS 6 <span class="comment">/*!&lt; System page */</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> FIL_PAGE_TYPE_TRX_SYS 7 <span class="comment">/*!&lt; Transaction system data */</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> FIL_PAGE_TYPE_FSP_HDR 8 <span class="comment">/*!&lt; File space header */</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> FIL_PAGE_TYPE_XDES 9 <span class="comment">/*!&lt; Extent descriptor page */</span></span></span><br><span class="line"></span><br><span class="line">...省略一些不太关注的类型</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>每个数据页头部有38自己的 FIL Header ， 结构内容:</p>
+<table>
+<thead>
+<tr>
+<th>大小(字节)</th>
+<th>字段</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>4</td>
+<td>Checksum</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Previous Page</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Next Page</td>
+</tr>
+<tr>
+<td>8</td>
+<td>LSN for last page modification</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Page Type</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Flush LSN</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Space ID</td>
+</tr>
+</tbody></table>
+<p>解析FIL Header可以得到一些有用内容:</p>
+<ul>
+<li><p>offset //相对文件的偏移量</p>
+</li>
+<li><p>previous/next page //当前页面前后节点的偏移量， 构成链表</p>
+</li>
+<li><p>page type //page的类型，对应上面所述</p>
+</li>
+<li><p>space id //表空间ID</p>
+</li>
+</ul>
+<h3 id="ibdata1文件结构"><a href="#ibdata1文件结构" class="headerlink" title="ibdata1文件结构"></a>ibdata1文件结构</h3><p>ibdata1文件是系统表空间，space id为0 ， 结构如下:</p>
+<img src="/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/ibdata1_file_overview.jpg" class="">
+
+<p>从上图中看到，ibdata1文件中的第7个页面，为FIL_PAGE_TYPE_SYS类型数据页，存放 Data Dictionary Header ，这个页面中存储内容对应的偏移量如下(storage/innobase/include/dict0boot.h):</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* The offset of the dictionary header on the page */</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> DICT_HDR FSEG_PAGE_DATA <span class="comment">//38字节文件头部信息</span></span></span><br><span class="line"></span><br><span class="line">/-------------------------------------------------------------/</span><br><span class="line"></span><br><span class="line"><span class="comment">/* Dictionary header offsets */</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> DICT_HDR_ROW_ID 0 <span class="comment">/* The latest assigned row id */</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> DICT_HDR_TABLE_ID 8 <span class="comment">/* The latest assigned table id */</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> DICT_HDR_INDEX_ID 16 <span class="comment">/* The latest assigned index id */</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> DICT_HDR_MAX_SPACE_ID 24 <span class="comment">/* The latest assigned space id,or 0*/</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> DICT_HDR_MIX_ID_LOW 28 <span class="comment">/* Obsolete,always DICT_HDR_FIRST_ID*/</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> DICT_HDR_TABLES 32 <span class="comment">/* Root of SYS_TABLES clust index */</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> DICT_HDR_TABLE_IDS 36 <span class="comment">/* Root of SYS_TABLE_IDS sec index */</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> DICT_HDR_COLUMNS 40 <span class="comment">/* Root of SYS_COLUMNS clust index */</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> DICT_HDR_INDEXES 44 <span class="comment">/* Root of SYS_INDEXES clust index */</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> DICT_HDR_FIELDS 48 <span class="comment">/* Root of SYS_FIELDS clust index */</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> DICT_HDR_FSEG_HEADER 56 <span class="comment">/* Segment header for the tablespace</span></span></span><br><span class="line"><span class="meta"><span class="comment"></span></span></span><br><span class="line"><span class="meta"><span class="comment">segment into which the dictionary</span></span></span><br><span class="line"><span class="meta"><span class="comment"></span></span></span><br><span class="line"><span class="meta"><span class="comment">header is created */</span></span></span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>其中DICT_HDR_TABLES、DICT_HDR_TABLE_IDS、DICT_HDR_COLUMNS、DICT_HDR_INDEXES、DICT_HDR_FIELDS就分别对应INNODB_SYS_%这几个系统表聚集索引(DICT_HDR_TABLE_IDS是SYS_TABLES的二级索引page)。解析这几个page就可以得到对应系统表中的数据。</p>
+<p>hexdump -C ibdata1 解析</p>
+<p>从0开始的第7个page偏移量大小是1c000，从这里开始经过(FSEG_PAGE_DATA+ DICT_HDR_TABLES） 70字节，之后开始读取的内容即为这几个系统表对应的page号:</p>
+<p>DICT_HDR_TABLES // 8</p>
+<p>DICT_HDR_TABLE_IDS // 9</p>
+<p>DICT_HDR_COLUMNS // 10</p>
+<p>DICT_HDR_INDEXES // 11</p>
+<p>DICT_HDR_FIELDS // 12</p>
+<img src="/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/FIL_PAGE_TYPE_SYS.jpg" class="">
+
+<h3 id="数据页解析"><a href="#数据页解析" class="headerlink" title="数据页解析"></a>数据页解析</h3><p>DICT_HDR_%对应的数据页类型为INDEX类型，INDEX结构如下:</p>
+<img src="/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/index_overview.jpg" class="">
+
+<p>其中INDEX Header 结构如下:</p>
+<img src="/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/index_header.jpg" class="">
+
+<p>上面这两张图中Nmuber of Directory Slots和Page Directory比较重要，Slots的作用是加快在页面内数据的查找速度，实现二分查找，通过解析Nmuber of Directory Slots可以得到page中总共有多少Slot，每个Slot为2个字节，存放相对于page的偏移量。</p>
+<img src="/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/index_page_directory.jpg" class="">
+
+<p>page从后向前读取Directory Slot 中的偏移量，实现二分查找，加快在页面中查找数据的速度 ，组成结构如下:</p>
+<img src="/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/page_directory_structure.jpg" class="">
+
+<p>例如上图中总共有7个Slot， 存放的偏移量数据为[99, 221, 349, 477, 605, 733, 112]， 如果要查询K=10这条记录，只需要扫描[477，349]这两个偏移量对应的Slot即可找到对应的数据。每个Slot包含的记录数(4-8条记录)。</p>
+<h3 id="记录解析"><a href="#记录解析" class="headerlink" title="记录解析"></a>记录解析</h3><p>现在知道了如何通过Page Directory定位数据，就需要知道每一条记录的存储结构了， MySQL 记录格式有新旧两种(Redundant Or Compact)，Index Header 中Number of Heap Records 的最高位如果是1就是Compact格式，否则是Redundant。</p>
+<p>(storage/innobase/include/page0page.h)</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">define</span> PAGE_N_HEAP 4 <span class="comment">/* number of records in the heap,</span></span></span><br><span class="line"><span class="meta"><span class="comment"></span></span></span><br><span class="line"><span class="meta"><span class="comment">bit 15=flag: new-style compact page format */</span></span></span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+
+
+<p>不同的类型，存储结构也不相同，记录由header和data两部分组成</p>
+<img src="/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/record_format.jpg" class="">
+
+<p>header部分存放了记录长度信息和一些额外的信息，Redundant格式为6字节，Compact格式为5字节</p>
+<p>(storage/innobase/include/rem0rec.ic)</p>
+<p>这里我们解析的是ibdata1文件中的系统表，其格式都是Redundant，6个字节存储的内容如下:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* Offsets of the bit-fields in an old-style record. NOTE! In the table the</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">most significant bytes and bits are written below less significant.</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">(1) byte offset (2) bit usage within byte</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">downward from</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">origin -&gt; 1 8 bits pointer to next record</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">2 8 bits pointer to next record</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">3 1 bit short flag</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">7 bits number of fields</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">4 3 bits number of fields</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">5 bits heap number</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">5 8 bits heap number</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">6 4 bits n_owned</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">4 bits info bi</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+
+
+<p>通过这些额外信息可以得到:</p>
+<ul>
+<li><p>当前记录是否为delete记录</p>
+</li>
+<li><p>当前Slot中有几条记录</p>
+</li>
+<li><p>当前记录的类型， 如果heap number 为0是infimum，1是supremum，从2开始是用户记录</p>
+</li>
+<li><p>记录中有多个字段</p>
+</li>
+<li><p>变长字段存储格式(1 or 2 字节)</p>
+</li>
+<li><p>下一条记录的偏移量(相对于page)</p>
+</li>
+</ul>
+<p>例如我们解析第8个page，也就是innodb_sys_tables中的内容:</p>
+<p>第8个page对应的偏移量大小是0x20000</p>
+<p>第9个page对应的偏移量大小是0x24000</p>
+<img src="/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/slot_offset.jpg" class="">
+
+<p>第8个page减去8个字节之后的2个字节就是第一个slot对应的值 00 65(16进制)= 101(10进制)，如下图:</p>
+<img src="/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/record_header.jpg" class="">
+
+<p>从101向前读取6字节，就是record header信息，按规则解析，解析的代码示例:</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">h.deleteFlag = (data[<span class="number">0</span>] &amp; <span class="number">0x20</span>) != <span class="number">0</span></span><br><span class="line"></span><br><span class="line">h.minRecFlag = (data[<span class="number">0</span>] &amp; <span class="number">0x10</span>) != <span class="number">0</span></span><br><span class="line"></span><br><span class="line">h.Owned = data[<span class="number">0</span>] &amp; <span class="number">0x0f</span></span><br><span class="line"></span><br><span class="line">h.heapNo |= <span class="keyword">uint16</span>(data[<span class="number">1</span>]) &lt;&lt; <span class="number">5</span></span><br><span class="line"></span><br><span class="line">h.heapNo |= <span class="keyword">uint16</span>(data[<span class="number">2</span>]&amp;<span class="number">0xf8</span>) &gt;&gt; <span class="number">3</span></span><br><span class="line"></span><br><span class="line">h.nField |= <span class="keyword">uint16</span>(data[<span class="number">2</span>]&amp;<span class="number">0x07</span>) &lt;&lt; <span class="number">7</span></span><br><span class="line"></span><br><span class="line">h.nField |= <span class="keyword">uint16</span>(data[<span class="number">3</span>]&amp;<span class="number">0xfe</span>) &gt;&gt; <span class="number">1</span></span><br><span class="line"></span><br><span class="line">h.sFlag = (data[<span class="number">3</span>] &amp; <span class="number">0x1</span>) != <span class="number">0</span></span><br><span class="line"></span><br><span class="line">h.nextRecorder = binary.BigEndian.Uint16(data[<span class="number">4</span>:])</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+
+
+<p>得到值为：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>deleteFlag</td>
+<td>false</td>
+</tr>
+<tr>
+<td>minRecFlag</td>
+<td>false</td>
+</tr>
+<tr>
+<td>Owned</td>
+<td>1</td>
+</tr>
+<tr>
+<td>heapNo</td>
+<td>0</td>
+</tr>
+<tr>
+<td>nField</td>
+<td>1</td>
+</tr>
+<tr>
+<td>sFlag</td>
+<td>true</td>
+</tr>
+<tr>
+<td>nextRecorder</td>
+<td>366</td>
+</tr>
+</tbody></table>
+<p>这可以知道记录类型是infimum， 下一条记录的Offset是366。</p>
+<p>偏移量366对应的前6个字节内容如下:</p>
+<img src="/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/record_header2.jpg" class="">
+
+<p>解析后的值:</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>deleteFlag</td>
+<td>false</td>
+</tr>
+<tr>
+<td>minRecFlag</td>
+<td>false</td>
+</tr>
+<tr>
+<td>Owned</td>
+<td>0</td>
+</tr>
+<tr>
+<td>heapNo</td>
+<td>5</td>
+</tr>
+<tr>
+<td>nField</td>
+<td>10</td>
+</tr>
+<tr>
+<td>sFlag</td>
+<td>true</td>
+</tr>
+<tr>
+<td>nextRecorder</td>
+<td>141</td>
+</tr>
+</tbody></table>
+<p>得到这条记录有10个字段，向前读取10个字节: 3a b6 36 32 2a 26 22 1a 13 0d， 就是字段的偏移量，通过偏移量就可以从fieldOffset位置处开始解析每一个字段的值。下面这个图更为直观一些</p>
+<img src="/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/record_struct.jpg" class="">
+
+<p>解析这10个字节就可以得到每个字段的长度，[13,6,7,8,4,4,8,4,0,4]， 解析大致方式是判断最高位是否为1，如果不为1就取后7位，并用当前字段的解析值减去前一个字段的解析值即得到这个字段的长度，例如:</p>
+<p>3a b6 36 32 2a 26 22 1a 13 0d</p>
+<p>0d = 0000 1101</p>
+<p>13 = 0001 0011</p>
+<p>这两个字段都不为空，所以第一个字段的长度是13 ， 第二个字段长度是19 - 13 = 6</p>
+<p>通过每个字段的长度，再从fieldOffset位置处开始解析出每个字段的值:</p>
+<p>sys_tables聚集索引的定义如下:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">enum</span> dict_fld_sys_tables_enum &#123;</span><br><span class="line"></span><br><span class="line">DICT_FLDSYS_TABLESNAME = <span class="number">0</span>,</span><br><span class="line"></span><br><span class="line">DICT_FLDSYS_TABLESDB_TRX_ID = <span class="number">1</span>,</span><br><span class="line"></span><br><span class="line">DICT_FLDSYS_TABLESDB_ROLL_PTR = <span class="number">2</span>,</span><br><span class="line"></span><br><span class="line">DICT_FLDSYS_TABLESID = <span class="number">3</span>,</span><br><span class="line"></span><br><span class="line">DICT_FLDSYS_TABLESN_COLS = <span class="number">4</span>,</span><br><span class="line"></span><br><span class="line">DICT_FLDSYS_TABLESTYPE = <span class="number">5</span>,</span><br><span class="line"></span><br><span class="line">DICT_FLDSYS_TABLESMIX_ID = <span class="number">6</span>,</span><br><span class="line"></span><br><span class="line">DICT_FLDSYS_TABLESMIX_LEN = <span class="number">7</span>,</span><br><span class="line"></span><br><span class="line">DICT_FLDSYS_TABLESCLUSTER_ID = <span class="number">8</span>,</span><br><span class="line"></span><br><span class="line">DICT_FLDSYS_TABLESSPACE = <span class="number">9</span>,</span><br><span class="line"></span><br><span class="line">DICT_NUM_FIELDS__SYS_TABLES = <span class="number">10</span></span><br><span class="line"></span><br><span class="line">&#125;;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+
+
+<p>解析方法可参考函数(storage/innobase/dict/dict0load.cc)dict_sys_tables_rec_read，解析后的值:</p>
+<table>
+<thead>
+<tr>
+<th>字段名</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>DICT_FLD__SYS_TABLES_NAME</td>
+<td>SYS_DATAFILES</td>
+</tr>
+<tr>
+<td>DICT_FLD__SYS_TABLES_DB_TRX_ID</td>
+<td>769</td>
+</tr>
+<tr>
+<td>DICT_FLD__SYS_TABLES_DB_ROLL_PTR</td>
+<td>45317471250485761</td>
+</tr>
+<tr>
+<td>DICT_FLD__SYS_TABLES_ID</td>
+<td>14</td>
+</tr>
+<tr>
+<td>DICT_FLD__SYS_TABLES_N_COLS</td>
+<td>2</td>
+</tr>
+<tr>
+<td>DICT_FLD__SYS_TABLES_TYPE</td>
+<td>1</td>
+</tr>
+<tr>
+<td>DICT_FLD__SYS_TABLES_MIX_ID</td>
+<td>0</td>
+</tr>
+<tr>
+<td>DICT_FLD__SYS_TABLES_MIX_LEN</td>
+<td>64</td>
+</tr>
+<tr>
+<td>DICT_FLD__SYS_TABLES_CLUSTER_ID</td>
+<td>null</td>
+</tr>
+<tr>
+<td>DICT_FLD__SYS_TABLES_SPACE</td>
+<td>0</td>
+</tr>
+</tbody></table>
+<p>与查询INNODB_SYS_TABLES表中的记录做个对比:</p>
+<img src="/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/sys_tables1.jpg" class="">
+
+<p>表中查询出的n_cols是5，但我们解析出来的是2，原因是表中查询会把三个隐藏字段也计算在内(DB_TRX_ID,DB_ROLL_PTR,DB_ROW_ID)。</p>
+<p>file_format与row_format如何的出来的呢？</p>
+<p>n_cols的第32位代表row_format格式，如果为1就是COMPACT。</p>
+<p>file_format会比较特殊一些， 需要根据解析出来的type和n_cols共同计算完成，代码中是这样写的(storage/innobase/include/dict0dict.ic):</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br></pre></td><td class="code"><pre><span class="line">Convert a <span class="number">32</span> bit integer from SYS_TABLES.TYPE to <span class="keyword">dict_table_t</span>::flags</span><br><span class="line"></span><br><span class="line">The following chart shows the translation of the low order bit.</span><br><span class="line"></span><br><span class="line">Other bits are the same.</span><br><span class="line"></span><br><span class="line">========================= Low order bit ==========================</span><br><span class="line"></span><br><span class="line">| REDUNDANT | COMPACT | COMPRESSED <span class="keyword">and</span> DYNAMIC</span><br><span class="line"></span><br><span class="line">SYS_TABLES.TYPE | <span class="number">1</span> | <span class="number">1</span> | <span class="number">1</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">dict_table_t</span>::flags | <span class="number">0</span> | <span class="number">1</span> | <span class="number">1</span></span><br><span class="line"></span><br><span class="line">==================================================================</span><br><span class="line"></span><br><span class="line">@<span class="keyword">return</span> ulint containing SYS_TABLES.TYPE */</span><br><span class="line"></span><br><span class="line">UNIV_INLINE</span><br><span class="line"></span><br><span class="line">ulint</span><br><span class="line"></span><br><span class="line">dict_sys_tables_type_to_tf(</span><br><span class="line"></span><br><span class="line">/=======================/</span><br><span class="line"></span><br><span class="line">ulint type, <span class="comment">/*!&lt; in: SYS_TABLES.TYPE field */</span></span><br><span class="line"></span><br><span class="line">ulint n_cols) <span class="comment">/*!&lt; in: SYS_TABLES.N_COLS field */</span></span><br><span class="line"></span><br><span class="line">&#123;</span><br><span class="line"></span><br><span class="line">ulint flags;</span><br><span class="line"></span><br><span class="line">ulint redundant = !(n_cols &amp; DICT_N_COLS_COMPACT); <span class="comment">// 判断是redundant还是COMPACT</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/* Adjust bit zero. */</span></span><br><span class="line"></span><br><span class="line">flags = redundant ? <span class="number">0</span> : <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">/* ZIP_SSIZE, ATOMIC_BLOBS &amp; DATA_DIR are the same. */</span></span><br><span class="line"></span><br><span class="line">flags |= type &amp; (DICT_TF_MASK_ZIP_SSIZE</span><br><span class="line"></span><br><span class="line">| DICT_TF_MASK_ATOMIC_BLOBS</span><br><span class="line"></span><br><span class="line">| DICT_TF_MASK_DATA_DIR</span><br><span class="line"></span><br><span class="line">| DICT_TF_MASK_SHARED_SPACE); <span class="comment">//除了最低位，用相应的标志位与type做 &#x27;&amp;&#x27;运算，判断是否存在这些属性，最后存放在flags中</span></span><br><span class="line"></span><br><span class="line">ut_ad(!DICT_TF_GET_ZIP_SSIZE(flags) || DICT_TF_HAS_ATOMIC_BLOBS(flags));</span><br><span class="line"></span><br><span class="line"><span class="keyword">return</span>(flags);</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+
+
+<table>
+<thead>
+<tr>
+<th>字段名</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>DICT_FLD__SYS_TABLES_N_COLS</td>
+<td>2</td>
+</tr>
+<tr>
+<td>DICT_FLD__SYS_TABLES_TYPE</td>
+<td>1</td>
+</tr>
+</tbody></table>
+<p>n_cols为2第32位是0 ， 所以redundant=1，flags的低位是0</p>
+<p>type为1，经过与相应的标志位做’&amp;’运算后，所有位都为0，最后的flags即是0，用一张图解释:</p>
+<img src="/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/flags1.jpg" class="">
+
+<p>查询的时候做相应的转换，判断file_format类型:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br></pre></td><td class="code"><pre><span class="line">i_s_dict_fill_sys_tables(</span><br><span class="line"></span><br><span class="line">/=====================/</span><br><span class="line"></span><br><span class="line">THD* thd, <span class="comment">/*!&lt; in: thread */</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">dict_table_t</span>* table, <span class="comment">/*!&lt; in: table */</span></span><br><span class="line"></span><br><span class="line">TABLE* table_to_fill) <span class="comment">/*!&lt; in/out: fill this table */</span></span><br><span class="line"></span><br><span class="line">&#123;</span><br><span class="line"></span><br><span class="line">Field** fields;</span><br><span class="line"></span><br><span class="line">ulint compact = DICT_TF_GET_COMPACT(table-&gt;flags); <span class="comment">//获取compact标志位</span></span><br><span class="line"></span><br><span class="line">ulint atomic_blobs = DICT_TF_HAS_ATOMIC_BLOBS(</span><br><span class="line"></span><br><span class="line">table-&gt;flags); <span class="comment">//获取atomic_blobs标志位，这个标志就代表了对于 blob or text field 做页外存储，也就代表file_format是Barracuda</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> <span class="keyword">page_size_t</span>&amp; page_size = dict_tf_get_page_size(table-&gt;flags);</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> <span class="keyword">char</span>* file_format;</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> <span class="keyword">char</span>* row_format;</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> <span class="keyword">char</span>* space_type;</span><br><span class="line"></span><br><span class="line">file_format = trx_sys_file_format_id_to_name(atomic_blobs); <span class="comment">//可以参考file_format_name_map，是一个指针数组，下标0代表Antelope，下标1代表Barracuda</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (!compact) &#123;</span><br><span class="line"></span><br><span class="line">row_format = <span class="string">&quot;Redundant&quot;</span>;</span><br><span class="line"></span><br><span class="line">&#125; <span class="keyword">else</span> <span class="keyword">if</span> (!atomic_blobs) &#123;</span><br><span class="line"></span><br><span class="line">row_format = <span class="string">&quot;Compact&quot;</span>;</span><br><span class="line"></span><br><span class="line">&#125; <span class="keyword">else</span> <span class="keyword">if</span> (DICT_TF_GET_ZIP_SSIZE(table-&gt;flags)) &#123;</span><br><span class="line"></span><br><span class="line">row_format = <span class="string">&quot;Compressed&quot;</span>;</span><br><span class="line"></span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line"></span><br><span class="line">row_format = <span class="string">&quot;Dynamic&quot;</span>;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (is_system_tablespace(table-&gt;space)) &#123;</span><br><span class="line"></span><br><span class="line">space_type = <span class="string">&quot;System&quot;</span>;</span><br><span class="line"></span><br><span class="line">&#125; <span class="keyword">else</span> <span class="keyword">if</span> (DICT_TF_HAS_SHARED_SPACE(table-&gt;flags)) &#123;</span><br><span class="line"></span><br><span class="line">space_type = <span class="string">&quot;General&quot;</span>;</span><br><span class="line"></span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line"></span><br><span class="line">space_type = <span class="string">&quot;Single&quot;</span>;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//省略无用代码</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<p>compact为0，!compact即为1，所以row_format为Redundant</p>
+<p>同时atomic_blobs为0 ， file_format即为Antelope</p>
+<ul>
+<li>再用以上规则解析一条非系统表记录</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>字段名</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>DICT_FLD__SYS_TABLES_NAME</td>
+<td>dhy/dhytest2</td>
+</tr>
+<tr>
+<td>DICT_FLD__SYS_TABLES_DB_TRX_ID</td>
+<td>27446</td>
+</tr>
+<tr>
+<td>DICT_FLD__SYS_TABLES_DB_ROLL_PTR</td>
+<td>46161896180619265</td>
+</tr>
+<tr>
+<td>DICT_FLD__SYS_TABLES_ID</td>
+<td>45</td>
+</tr>
+<tr>
+<td>DICT_FLD__SYS_TABLE_N_COLS</td>
+<td>2147483650</td>
+</tr>
+<tr>
+<td>DICT_FLD__SYS_TABLES_TYPE</td>
+<td>33</td>
+</tr>
+<tr>
+<td>DICT_FLD__SYS_TABLES_MIX_ID</td>
+<td>0</td>
+</tr>
+<tr>
+<td>DICT_FLD__SYS_TABLES_MIX_LEN</td>
+<td>80</td>
+</tr>
+<tr>
+<td>DICT_FLD__SYS_TABLES_CLUSTER_ID</td>
+<td>null</td>
+</tr>
+<tr>
+<td>DICT_FLD__SYS_TABLES_SPACE</td>
+<td>82</td>
+</tr>
+</tbody></table>
+<img src="/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/flags2.jpg" class="">
+
+<p>n_cols为2第32位是1 ， 所以redundant=0，flags的低位是1</p>
+<p>type为33，对应的二进制是:0010 0001，经过与相应的标志位做’&amp;’运算后，对应的二进制为:0010 0000，在与flags做’|’操作后，二进制为:0010001，则atomic_blobs和compact为1，对应的file_format则是Barracuda， row_format是Dynamic</p>
+<p>同时n_cols 第32位的标志位需要取消，n_cols即为2了。</p>
+<p>与查询表中得到的信息是一致的:</p>
+<p>&lt;!–￼14–&gt;</p>
+<h2 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h2><p>本文介绍了Innodb系统表空间基本的结构，及如何解析ibdata表空间中的记录。通过翻阅资料和MySQL代码的查看，学习到很多技巧，例如:位移操作、逻辑运算、如何节省空间等。后面会再写一篇关于系统表加载的文章。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://yoursite.com/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/" data-id="ckdyc8e370001rluuenbfecvq" class="article-share-link">Share</a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Innodb/" rel="tag">Innodb</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/MySQL/" rel="tag">MySQL</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2020/08/17/hello-world/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          Hello World
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2020/06/08/MySQL%E4%B8%AD%E5%A6%82%E4%BD%95%E6%8E%A7%E5%88%B6SQL%E5%9C%A8%E6%B5%8B%E8%AF%95-%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E5%85%B7%E6%9C%89%E7%9B%B8%E5%90%8C%E7%9A%84%E6%89%A7%E8%A1%8C%E8%B7%AF%E5%BE%84/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">MySQL中如何控制SQL在测试-生产环境具有相同的执行路径</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/Greenplum/" rel="tag">Greenplum</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Innodb/" rel="tag">Innodb</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Innodb-Lock/" rel="tag">Innodb Lock</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Linux/" rel="tag">Linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/MGR/" rel="tag">MGR</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/MVCC/" rel="tag">MVCC</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/MySQL/" rel="tag">MySQL</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/MySQL-Group-Replicaton/" rel="tag">MySQL Group Replicaton</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/PosgreSQL-%E6%BA%90%E7%A0%81/" rel="tag">PosgreSQL 源码</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/PostgreSQL/" rel="tag">PostgreSQL</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/SQL/" rel="tag">SQL</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/SQL%E4%BC%98%E5%8C%96/" rel="tag">SQL优化</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/WAL%E6%97%A5%E5%BF%97/" rel="tag">WAL日志</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/mysql/" rel="tag">mysql</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E4%B8%BB%E4%BB%8E/" rel="tag">主从</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E4%BC%98%E5%8C%96/" rel="tag">优化</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%A4%87%E4%BB%BD%E6%81%A2%E5%A4%8D/" rel="tag">备份恢复</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%A4%8D%E5%88%B6/" rel="tag">复制</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%9F%A5%E8%AF%A2%E4%BC%98%E5%8C%96/" rel="tag">查询优化</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%AD%BB%E9%94%81/" rel="tag">死锁</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF/" rel="tag">统计信息</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/Greenplum/" style="font-size: 10px;">Greenplum</a> <a href="/tags/Innodb/" style="font-size: 10px;">Innodb</a> <a href="/tags/Innodb-Lock/" style="font-size: 10px;">Innodb Lock</a> <a href="/tags/Linux/" style="font-size: 10px;">Linux</a> <a href="/tags/MGR/" style="font-size: 12px;">MGR</a> <a href="/tags/MVCC/" style="font-size: 10px;">MVCC</a> <a href="/tags/MySQL/" style="font-size: 20px;">MySQL</a> <a href="/tags/MySQL-Group-Replicaton/" style="font-size: 12px;">MySQL Group Replicaton</a> <a href="/tags/PosgreSQL-%E6%BA%90%E7%A0%81/" style="font-size: 10px;">PosgreSQL 源码</a> <a href="/tags/PostgreSQL/" style="font-size: 18px;">PostgreSQL</a> <a href="/tags/SQL/" style="font-size: 10px;">SQL</a> <a href="/tags/SQL%E4%BC%98%E5%8C%96/" style="font-size: 12px;">SQL优化</a> <a href="/tags/WAL%E6%97%A5%E5%BF%97/" style="font-size: 10px;">WAL日志</a> <a href="/tags/mysql/" style="font-size: 10px;">mysql</a> <a href="/tags/%E4%B8%BB%E4%BB%8E/" style="font-size: 10px;">主从</a> <a href="/tags/%E4%BC%98%E5%8C%96/" style="font-size: 16px;">优化</a> <a href="/tags/%E5%A4%87%E4%BB%BD%E6%81%A2%E5%A4%8D/" style="font-size: 10px;">备份恢复</a> <a href="/tags/%E5%A4%8D%E5%88%B6/" style="font-size: 12px;">复制</a> <a href="/tags/%E6%9F%A5%E8%AF%A2%E4%BC%98%E5%8C%96/" style="font-size: 10px;">查询优化</a> <a href="/tags/%E6%AD%BB%E9%94%81/" style="font-size: 14px;">死锁</a> <a href="/tags/%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF/" style="font-size: 12px;">统计信息</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/08/">August 2020</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/06/">June 2020</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">April 2020</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">February 2020</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/09/">September 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/08/">August 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/07/">July 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/06/">June 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/04/">April 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/03/">March 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/02/">February 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">August 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/07/">July 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/06/">June 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/04/">April 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/02/">February 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/01/">January 2018</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2020/08/17/hello-world/">Hello World</a>
+          </li>
+        
+          <li>
+            <a href="/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/">Innodb系统表-结构解析</a>
+          </li>
+        
+          <li>
+            <a href="/2020/06/08/MySQL%E4%B8%AD%E5%A6%82%E4%BD%95%E6%8E%A7%E5%88%B6SQL%E5%9C%A8%E6%B5%8B%E8%AF%95-%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E5%85%B7%E6%9C%89%E7%9B%B8%E5%90%8C%E7%9A%84%E6%89%A7%E8%A1%8C%E8%B7%AF%E5%BE%84/">MySQL中如何控制SQL在测试-生产环境具有相同的执行路径</a>
+          </li>
+        
+          <li>
+            <a href="/2020/04/04/RC%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB%E4%B8%8B%EF%BC%8C%E6%AD%BB%E9%94%81%E6%A1%88%E4%BE%8B%E5%88%86%E6%9E%90/">RC隔离级别下，死锁案例分析</a>
+          </li>
+        
+          <li>
+            <a href="/2020/02/27/MySQL%E5%A4%8D%E5%88%B6%E5%AE%89%E5%85%A8%E5%88%86%E6%9E%90/">MySQL复制安全分析</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      &copy; 2020 Dong Hong Yu<br>
+      Powered by <a href="http://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+<script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+
+
+  
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+  
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+  </div>
+</body>
+</html>

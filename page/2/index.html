@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+
+  
+  <title>随便写写</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="description" content="小白一个">
+<meta property="og:type" content="website">
+<meta property="og:title" content="随便写写">
+<meta property="og:url" content="http://yoursite.com/page/2/index.html">
+<meta property="og:site_name" content="随便写写">
+<meta property="og:description" content="小白一个">
+<meta property="og:locale">
+<meta property="article:author" content="Dong Hong Yu">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="随便写写" type="application/atom+xml">
+  
+  
+    <link rel="icon" href="/favicon.png">
+  
+  
+    <link href="//fonts.googleapis.com/css?family=Source+Code+Pro" rel="stylesheet" type="text/css">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 5.0.2"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">随便写写</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://yoursite.com"></form>
+      </div>
+    </div>
+  </div>
+</header>
+      <div class="outer">
+        <section id="main">
+  
+    <article id="post-插入意向锁死锁案例" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2019/04/04/%E6%8F%92%E5%85%A5%E6%84%8F%E5%90%91%E9%94%81%E6%AD%BB%E9%94%81%E6%A1%88%E4%BE%8B/" class="article-date">
+  <time datetime="2019-04-04T05:42:46.000Z" itemprop="datePublished">2019-04-04</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2019/04/04/%E6%8F%92%E5%85%A5%E6%84%8F%E5%90%91%E9%94%81%E6%AD%BB%E9%94%81%E6%A1%88%E4%BE%8B/">插入意向锁死锁案例</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h1 id="插入意向锁死锁案例"><a href="#插入意向锁死锁案例" class="headerlink" title="插入意向锁死锁案例"></a>插入意向锁死锁案例</h1><h2 id="现象"><a href="#现象" class="headerlink" title="现象"></a>现象</h2><p>客户环境中遇到一个死锁现象， 客户不能理解在这种情况下为何会发生死锁。通常死锁发生的情况如下 :<br>当两个事务都试图获取另一个事务已经拥有的锁时，就会发生死锁</p>
+<img src="/2019/04/04/%E6%8F%92%E5%85%A5%E6%84%8F%E5%90%91%E9%94%81%E6%AD%BB%E9%94%81%E6%A1%88%E4%BE%8B/36-1.png" class="">
+<p>事务1在记录A上获得锁定，事务2在记录B上获得锁定 。随后每个事务尝试获取另一事务持有的锁将触发死锁的锁定。</p>
+<p>但这个案例中死锁的产生和上述所讲情况有些不一样，我们来模拟下:</p>
+<ul>
+<li><p>环境信息</p>
+<ul>
+<li>事务隔离级别 :RR</li>
+<li>MySQL版本 : 8.0.13</li>
+</ul>
+</li>
+<li><p>表结构:</p>
+</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">CREATE TABLE t (a INT UNSIGNED NOT NULL PRIMARY KEY, b INT);</span><br><span class="line">INSERT INTO t VALUES(10,0),(20,0);</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>复现情况如下:</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>session1</th>
+<th>session2</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>BEGIN;<br>UPDATE t SET b=1 WHERE a=20;<br>//执行成功</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>mysql&gt; begin;<by>mysql&gt; SELECT * FROM t LOCK IN SHARE MODE;<br> //发生阻塞</td>
+</tr>
+<tr>
+<td>INSERT INTO t VALUES(11,1);</td>
+<td>//同一时刻session2报死锁错误<br>SELECT * FROM t LOCK IN SHARE MODE;<br>ERROR 1213 (40001): Deadlock found when trying to get lock; try restarting transaction</td>
+</tr>
+</tbody></table>
+<p>现象如上述表格中所示Session1中执行了UPDATE语句，随后Session2执行了一个全表查询并且带上了IN SHARE MODE添加了共享锁，之后Session1再次执行INSERT语句的同时Session2直接报了死锁事务被回滚了。</p>
+<h2 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h2><p>这个现象中疑惑的地方有几点:</p>
+<ol>
+<li>两个事务之间是如何加锁的？</li>
+<li>为何就产生了死锁？</li>
+<li>发生死锁后为什么时session2被回滚了？</li>
+</ol>
+<p>让我们来逐一分析下</p>
+<h3 id="两个事务之间是如何加锁的？"><a href="#两个事务之间是如何加锁的？" class="headerlink" title="两个事务之间是如何加锁的？"></a>两个事务之间是如何加锁的？</h3><p>让我们来逐一分析下，两个事务之间是如何加锁的？当Session1执行完UPDATE后，加锁情况<br>:</p>
+<img src="/2019/04/04/%E6%8F%92%E5%85%A5%E6%84%8F%E5%90%91%E9%94%81%E6%AD%BB%E9%94%81%E6%A1%88%E4%BE%8B/36-2.png" class="">
+
+
+<p>这里看到是对表上添加了IX锁同时对记录20上添加了X锁，Session2执行后加锁情况:</p>
+<img src="/2019/04/04/%E6%8F%92%E5%85%A5%E6%84%8F%E5%90%91%E9%94%81%E6%AD%BB%E9%94%81%E6%A1%88%E4%BE%8B/36-3.png" class="">
+
+<p>Session2执行后总共会申请三个锁:</p>
+<ol>
+<li>表上添加IS锁</li>
+<li>a=10 这条记录上添加GAP S-lock锁</li>
+<li>a=20 这条记录上添加GAP S-lock锁</li>
+</ol>
+<p>GAP S-lock 本质是 Next Key Lock (S)， 在第20章中我们介绍过LOCK_MODE各种显式结果对应的锁类型。这里的GAP S-lock代表的就是GAP锁+S记录锁的组合等于Next Key Lock(S)<br>Session2执行会发生阻塞是因为a=20这条记录上的已经被Session1持有了X锁与将要申请的S锁冲突了，这里需要注意Session2上锁的类型应是GAP S-lock锁，这条语句上锁的范围是(-∞,10],(10,20],(20,+∞)。 这里由于申请a=20记录上S锁时发生了阻塞，我们看不到“supremum pseudo-record”如果我们单独执行这条语句加锁情况:</p>
+<img src="/2019/04/04/%E6%8F%92%E5%85%A5%E6%84%8F%E5%90%91%E9%94%81%E6%AD%BB%E9%94%81%E6%A1%88%E4%BE%8B/36-4.png" class="">
+
+<p>之后Session1执行的INSERT语句将会产生插入意向锁(Insert intention lock):</p>
+<img src="/2019/04/04/%E6%8F%92%E5%85%A5%E6%84%8F%E5%90%91%E9%94%81%E6%AD%BB%E9%94%81%E6%A1%88%E4%BE%8B/36-5.png" class="">
+
+<h3 id="为何就产生了死锁？"><a href="#为何就产生了死锁？" class="headerlink" title="为何就产生了死锁？"></a>为何就产生了死锁？</h3><p>我们看下gap锁与插入意向锁的兼容情况:</p>
+<table>
+<thead>
+<tr>
+<th>gap X-lock</th>
+<th>gap S-lock</th>
+<th>Insert intention lock</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Gap X-lock</td>
+<td>Incompatible</td>
+<td>Incompatible</td>
+</tr>
+<tr>
+<td>Gap S-lock</td>
+<td>Incompatible</td>
+<td>Compatible</td>
+</tr>
+<tr>
+<td>Insert intention</td>
+<td>Incompatible</td>
+<td>Incompatible</td>
+</tr>
+</tbody></table>
+<p>根据以上表格我们再来分析这个锁问题:</p>
+<table>
+<thead>
+<tr>
+<th>session1</th>
+<th>session2</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>a=20 -&gt; lock(x)<br>记录锁X</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>a=10 -&gt; lock(s)<br>a=20 -&gt; lock wait session1<br> GAP S-lock</td>
+</tr>
+<tr>
+<td>插入意向锁</td>
+<td></td>
+</tr>
+<tr>
+<td>session2等待session1上X锁的释放，随后的插入意向锁与session2 GAP S-lock不兼容， 这样就会造成session1与session2都不能同时进行下去了造成了死锁。</td>
+<td></td>
+</tr>
+</tbody></table>
+<h3 id="发生死锁后为什么时session2被回滚了？"><a href="#发生死锁后为什么时session2被回滚了？" class="headerlink" title="发生死锁后为什么时session2被回滚了？"></a>发生死锁后为什么时session2被回滚了？</h3><p>InooDB在发现死锁时选择回滚占用资源最小的事务，通过innodb_trx表中的trx_weight来判断占用资源的大小，此案例中单独去执行SQL通过查询innodb_trx表分别对应的trx_weight如表所示，由于Session2的SELECT语句对应的trx_weigt小于Session1的，所以Session2被回滚:</p>
+<table>
+<thead>
+<tr>
+<th>语句</th>
+<th>trx_weight</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>update</td>
+<td>3</td>
+</tr>
+<tr>
+<td>select</td>
+<td>2</td>
+</tr>
+<tr>
+<td>insert</td>
+<td>5</td>
+</tr>
+<tr>
+<td>所以这里回滚session2</td>
+<td></td>
+</tr>
+</tbody></table>
+<h2 id="总结及扩展"><a href="#总结及扩展" class="headerlink" title="总结及扩展"></a>总结及扩展</h2><p>这个案例中我们分析了死锁的产生过程，重点的地方是插入意向锁与GAP锁兼不兼容。同时也知道了发生回滚时InnoDB如何选择的</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://yoursite.com/2019/04/04/%E6%8F%92%E5%85%A5%E6%84%8F%E5%90%91%E9%94%81%E6%AD%BB%E9%94%81%E6%A1%88%E4%BE%8B/" data-id="ckdyc8e4n0027rluuevy6gp7f" class="article-share-link">Share</a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E6%AD%BB%E9%94%81/" rel="tag">死锁</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+  
+    <article id="post-MySQL-Group-Replication中的一致性读" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2019/03/02/MySQL-Group-Replication%E4%B8%AD%E7%9A%84%E4%B8%80%E8%87%B4%E6%80%A7%E8%AF%BB/" class="article-date">
+  <time datetime="2019-03-02T11:39:27.000Z" itemprop="datePublished">2019-03-02</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2019/03/02/MySQL-Group-Replication%E4%B8%AD%E7%9A%84%E4%B8%80%E8%87%B4%E6%80%A7%E8%AF%BB/">MySQL Group Replication中的一致性读 </a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <blockquote>
+<p>MGR基于Paxos协议，多个节点之间强同步的高可用方案，但多个节点的强一致性是保证了最终一致性，在平常的各节点复制中还是异步的。</p>
+</blockquote>
+<h2 id="MGR中有两种需要一致性读的地方"><a href="#MGR中有两种需要一致性读的地方" class="headerlink" title="MGR中有两种需要一致性读的地方"></a>MGR中有两种需要一致性读的地方</h2><ul>
+<li><p>手工或自动发生切换的时候<br>当主库发生故障时MGR会选举一个新的主节点，新主节点接管后默认是不等待事务补偿到和原主节点相差的这部分数据，就对外提供服务，这时客户端再次发送新的请求时，就有可能与前一次查询到的结果不一致(MySQL 8.0.14之前都采用的是这种方式)</p>
+</li>
+<li><p>数据复制<br>由于各节点之间复制是异步的，所以会存在两个客户端分别读取不同节点上的数据库时得到的结果不同。</p>
+</li>
+</ul>
+<p>我们很容易想到改成同步的不就好了吗？，但改为同步方式也有两种情况:</p>
+<ul>
+<li>同步写<br>每一次写操作都会等待数据同步到各个节点，等待各个节点上都commit(applied)成功。<br>这种方式适用于以下场景:</li>
+</ul>
+<ol>
+<li>需要读的强一致性</li>
+<li>读多写少</li>
+</ol>
+<ul>
+<li>同步读<br>这种方式不会等待每个节点都commit(applied)成功，而是每次读操作时会等待数据应用完成，以便读取到的数据是最新的<br>这种方式适用于以下场景:</li>
+</ul>
+<ol>
+<li>需要强一致性读</li>
+<li>写多读少</li>
+</ol>
+<h2 id="MGR中的一致性读参数group-replication-consistency"><a href="#MGR中的一致性读参数group-replication-consistency" class="headerlink" title="MGR中的一致性读参数group_replication_consistency"></a>MGR中的一致性读参数group_replication_consistency</h2><p>在MySQL8.0.14中增加的group_replication_consistency参数，用来设置一致性读的级别，参数可设置为以下几个值:</p>
+<ul>
+<li>EVENTUAL(默认值):</li>
+</ul>
+<p>8.0.14之前的方式，所有的读写操作不会等待数据在各个节点commit(applied)完成</p>
+<ul>
+<li>BEFORE_ON_PRIMARY_FAILOVER<br>发生切换之后将等待积压的事务应用完成之后，才允许读写操作</li>
+<li>BEFORE<br>RW事务操作等待之前所有的事务操作全部完成，同时RO事务操作等待之前的事务全部应用完成，保证读的数据是最新正确的。对应我们上面所说的同步读。</li>
+<li>AFTER<br>RW事务操作会等待其对数据的变更，在所有节点上全部commit(applied)完成，保证之后读的数据是最新正确的。对应我们上面所说的同步写。</li>
+<li>BEFORE_AND_AFTER<br>BEFORE与AFTER的组合</li>
+</ul>
+<p>BEFORE与AFTER的区别之处:</p>
+<ol>
+<li>BEFORE不会等待数据的变更在所有节点上全部commit(applied)完成，可以理解为写操作还是异步的，对于写多读少的场景，这样可以较少同步RW事务的开销</li>
+<li>AFTER写操作在各个节点上是同步的，对于读多写少的场景，可以较少RO事务同步等待的开销。</li>
+</ol>
+<h2 id="group-replication-consistency的作用域"><a href="#group-replication-consistency的作用域" class="headerlink" title="group_replication_consistency的作用域"></a>group_replication_consistency的作用域</h2><p>此参数在单个节点上可设置为session或者是global，可以根据不同的情况设置session级别，部分数据的同步，这点非常灵活。但是需要注意AFTER与BEFORE_AND_AFTER会影响到集群中的所有节点。同时AFTER与BEFORE_AND_AFTER会影响到所有online的成员，举个例子如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"># Group with 3 members: M1, M2 and M3</span><br><span class="line"># on M1 a client executes:</span><br><span class="line"> &gt; SET @@SESSION.group_replication_consistency&#x3D; AFTER;</span><br><span class="line"> &gt; BEGIN;</span><br><span class="line"> &gt; INSERT INTO t1 VALUES (1); # T1</span><br><span class="line"> &gt; COMMIT;</span><br><span class="line"># concurrently, while T1 is being committed, on M2 a client executes:</span><br><span class="line"> &gt; SET SESSION group_replication_consistency&#x3D; EVENTUAL;</span><br><span class="line"> &gt; SELECT * FROM t1; # T2</span><br></pre></td></tr></table></figure>
+<p>即使T2一致性级别为EVENTUAL，如果它在T1已经处于M2的提交阶段时开始执行，则T2等待T1完成提交，然后才能执行</p>
+<h2 id="等待时间由什么控制"><a href="#等待时间由什么控制" class="headerlink" title="等待时间由什么控制"></a>等待时间由什么控制</h2><p>如果集群压力非常大或者出现什么异常情况则可能会一直等待下去，那么就要有个超时时间，这个超时时间由参数wait_timeout控制(默认是8个小时)，如果超过这么长时间则会抛出ER_GR_HOLD_WAIT_TIMEOUT异常</p>
+<h1 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h1><p><a target="_blank" rel="noopener" href="https://mysqlhighavailability.com/group-replication-consistency-levels/">https://mysqlhighavailability.com/group-replication-consistency-levels/</a><br><a target="_blank" rel="noopener" href="https://mysqlhighavailability.com/group-replication-consistent-reads/">https://mysqlhighavailability.com/group-replication-consistent-reads/</a></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://yoursite.com/2019/03/02/MySQL-Group-Replication%E4%B8%AD%E7%9A%84%E4%B8%80%E8%87%B4%E6%80%A7%E8%AF%BB/" data-id="ckdyc8e3f0006rluu65dpd9j0" class="article-share-link">Share</a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/MGR/" rel="tag">MGR</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/MySQL-Group-Replicaton/" rel="tag">MySQL Group Replicaton</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+  
+    <article id="post-如何阅读MySQL死锁日志-并发删除数据造成死锁" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2019/02/28/%E5%A6%82%E4%BD%95%E9%98%85%E8%AF%BBMySQL%E6%AD%BB%E9%94%81%E6%97%A5%E5%BF%97-%E5%B9%B6%E5%8F%91%E5%88%A0%E9%99%A4%E6%95%B0%E6%8D%AE%E9%80%A0%E6%88%90%E6%AD%BB%E9%94%81/" class="article-date">
+  <time datetime="2019-02-28T15:31:43.000Z" itemprop="datePublished">2019-02-28</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2019/02/28/%E5%A6%82%E4%BD%95%E9%98%85%E8%AF%BBMySQL%E6%AD%BB%E9%94%81%E6%97%A5%E5%BF%97-%E5%B9%B6%E5%8F%91%E5%88%A0%E9%99%A4%E6%95%B0%E6%8D%AE%E9%80%A0%E6%88%90%E6%AD%BB%E9%94%81/">如何阅读MySQL死锁日志(并发删除数据造成死锁)</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h2 id="现象描述"><a href="#现象描述" class="headerlink" title="现象描述"></a>现象描述</h2><p>客户在夜间批量执行数据处理时发生了死锁现象，是由不同的会话并发删除数据引起的，这个问题原因是比较简单，但想通过这个案例让大家熟悉如何去排查死锁问题，如何去阅读死锁日志这才是目的。通过模拟用户死锁现象后，死锁日志如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br></pre></td><td class="code"><pre><span class="line">*** (1) TRANSACTION:</span><br><span class="line">TRANSACTION 39474, ACTIVE 58 sec starting index read</span><br><span class="line">mysql tables in use 1, locked 1</span><br><span class="line">LOCK WAIT 3 lock struct(s), heap size 1200, 4 row lock(s), undo log entries 3</span><br><span class="line">MySQL thread id 9, OS thread handle 123145525800960, query id 77 localhost root updating</span><br><span class="line">DELETE FROM t1 WHERE id &#x3D; 4</span><br><span class="line">*** (1) WAITING FOR THIS LOCK TO BE GRANTED:</span><br><span class="line">RECORD LOCKS space id 114 page no 4 n bits 80 index PRIMARY of table &#96;dhy&#96;.&#96;t1&#96; trx id 39474 lock_mode X locks rec but not gap waiting</span><br><span class="line">Record lock, heap no 5 PHYSICAL RECORD: n_fields 4; compact format; info bits 32</span><br><span class="line"> 0: len 4; hex 00000004; asc     ;;</span><br><span class="line"> 1: len 6; hex 000000009a33; asc      3;;</span><br><span class="line"> 2: len 7; hex 02000001471399; asc     G  ;;</span><br><span class="line"> 3: len 2; hex 6464; asc dd;;</span><br><span class="line"></span><br><span class="line">*** (2) TRANSACTION:</span><br><span class="line">TRANSACTION 39475, ACTIVE 46 sec starting index read</span><br><span class="line">mysql tables in use 1, locked 1</span><br><span class="line">3 lock struct(s), heap size 1200, 4 row lock(s), undo log entries 3</span><br><span class="line">MySQL thread id 10, OS thread handle 123145526104064, query id 78 localhost root updating</span><br><span class="line">DELETE FROM t1 WHERE id &#x3D; 3</span><br><span class="line">*** (2) HOLDS THE LOCK(S):</span><br><span class="line">RECORD LOCKS space id 114 page no 4 n bits 80 index PRIMARY of table &#96;dhy&#96;.&#96;t1&#96; trx id 39475 lock_mode X locks rec but not gap</span><br><span class="line">Record lock, heap no 5 PHYSICAL RECORD: n_fields 4; compact format; info bits 32</span><br><span class="line"> 0: len 4; hex 00000004; asc     ;;</span><br><span class="line"> 1: len 6; hex 000000009a33; asc      3;;</span><br><span class="line"> 2: len 7; hex 02000001471399; asc     G  ;;</span><br><span class="line"> 3: len 2; hex 6464; asc dd;;</span><br><span class="line"></span><br><span class="line">Record lock, heap no 6 PHYSICAL RECORD: n_fields 4; compact format; info bits 32</span><br><span class="line"> 0: len 4; hex 00000005; asc     ;;</span><br><span class="line"> 1: len 6; hex 000000009a33; asc      3;;</span><br><span class="line"> 2: len 7; hex 02000001471375; asc     G u;;</span><br><span class="line"> 3: len 2; hex 6565; asc ee;;</span><br><span class="line"></span><br><span class="line">Record lock, heap no 7 PHYSICAL RECORD: n_fields 4; compact format; info bits 32</span><br><span class="line"> 0: len 4; hex 00000006; asc     ;;</span><br><span class="line"> 1: len 6; hex 000000009a33; asc      3;;</span><br><span class="line"> 2: len 7; hex 02000001471351; asc     G Q;;</span><br><span class="line"> 3: len 2; hex 6666; asc ff;;</span><br><span class="line"></span><br><span class="line">*** (2) WAITING FOR THIS LOCK TO BE GRANTED:</span><br><span class="line">RECORD LOCKS space id 114 page no 4 n bits 80 index PRIMARY of table &#96;dhy&#96;.&#96;t1&#96; trx id 39475 lock_mode X locks rec but not gap waiting</span><br><span class="line">Record lock, heap no 4 PHYSICAL RECORD: n_fields 4; compact format; info bits 32</span><br><span class="line"> 0: len 4; hex 00000003; asc     ;;</span><br><span class="line"> 1: len 6; hex 000000009a32; asc      2;;</span><br><span class="line"> 2: len 7; hex 01000001462e1f; asc     F. ;;</span><br><span class="line"> 3: len 2; hex 6363; asc cc;;</span><br><span class="line"></span><br><span class="line">*** WE ROLL BACK TRANSACTION (2)</span><br></pre></td></tr></table></figure>
+
+<h2 id="如何阅读死锁日志"><a href="#如何阅读死锁日志" class="headerlink" title="如何阅读死锁日志"></a>如何阅读死锁日志</h2><p>要排查死锁问题我们就要学会如何查看死锁日志，但MySQL死锁日志看起来并不是很直观需要我们一步一步耐心分析。<br>我们将上面的死锁日志拆分阅读，我们可以得出以下信息:</p>
+<ul>
+<li><p>两个事务的事务ID<br>TRANSACTION 39474<br>TRANSACTION 39475</p>
+</li>
+<li><p>事务39474在执行delete语句是发生了锁等待</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">DELETE FROM t1 WHERE id &#x3D; 4</span><br><span class="line">*** (1) WAITING FOR THIS LOCK TO BE GRANTED:</span><br><span class="line">RECORD LOCKS space id 114 page no 4 n bits 80 index PRIMARY of table &#96;dhy&#96;.&#96;t1&#96; trx id 39474 lock_mode X locks rec but not gap waiting</span><br><span class="line">Record lock, heap no 5 PHYSICAL RECORD: n_fields 4; compact format; info bits 32</span><br><span class="line"> 0: len 4; hex 00000004; asc     ;; &#x2F;&#x2F;聚集索引的值</span><br><span class="line"> 1: len 6; hex 000000009a33; asc      3;; &#x2F;&#x2F;事务ID</span><br><span class="line"> 2: len 7; hex 02000001471399; asc     G  ;; &#x2F;&#x2F;undo 记录</span><br><span class="line"> 3: len 2; hex 6464; asc dd;; &#x2F;&#x2F;非主键字段的值</span><br></pre></td></tr></table></figure>
+<p>通过以上信息可以得出事务39474执行delete语句时，锁等待发生在申请ID=4这条记录上的X锁“lock_mode X locks rec but not gap waiting”</p>
+</li>
+<li><p>事务39475持有锁的信息</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">*** (2) HOLDS THE LOCK(S):</span><br><span class="line">RECORD LOCKS space id 114 page no 4 n bits 80 index PRIMARY of table &#96;dhy&#96;.&#96;t1&#96; trx id 39475 lock_mode X locks rec but not gap</span><br><span class="line">Record lock, heap no 5 PHYSICAL RECORD: n_fields 4; compact format; info bits 32</span><br><span class="line"> 0: len 4; hex 00000004; asc     ;;</span><br><span class="line"> 1: len 6; hex 000000009a33; asc      3;;</span><br><span class="line"> 2: len 7; hex 02000001471399; asc     G  ;;</span><br><span class="line"> 3: len 2; hex 6464; asc dd;;</span><br><span class="line"></span><br><span class="line">Record lock, heap no 6 PHYSICAL RECORD: n_fields 4; compact format; info bits 32</span><br><span class="line"> 0: len 4; hex 00000005; asc     ;;</span><br><span class="line"> 1: len 6; hex 000000009a33; asc      3;;</span><br><span class="line"> 2: len 7; hex 02000001471375; asc     G u;;</span><br><span class="line"> 3: len 2; hex 6565; asc ee;;</span><br><span class="line"></span><br><span class="line">Record lock, heap no 7 PHYSICAL RECORD: n_fields 4; compact format; info bits 32</span><br><span class="line"> 0: len 4; hex 00000006; asc     ;;</span><br><span class="line"> 1: len 6; hex 000000009a33; asc      3;;</span><br><span class="line"> 2: len 7; hex 02000001471351; asc     G Q;;</span><br><span class="line"> 3: len 2; hex 6666; asc ff;;</span><br></pre></td></tr></table></figure>
+<p>事务39475持有在ID=4，5，6上X锁</p>
+</li>
+<li><p>事务39475同样在执行delete语句时发生了所等待</p>
+</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">*** (2) TRANSACTION:</span><br><span class="line">TRANSACTION 39475, ACTIVE 46 sec starting index read</span><br><span class="line">mysql tables in use 1, locked 1</span><br><span class="line">3 lock struct(s), heap size 1200, 4 row lock(s), undo log entries 3</span><br><span class="line">MySQL thread id 10, OS thread handle 123145526104064, query id 78 localhost root updating</span><br><span class="line">DELETE FROM t1 WHERE id &#x3D; 3</span><br><span class="line"></span><br><span class="line">*** (2) WAITING FOR THIS LOCK TO BE GRANTED:</span><br><span class="line">RECORD LOCKS space id 114 page no 4 n bits 80 index PRIMARY of table &#96;dhy&#96;.&#96;t1&#96; trx id 39475 lock_mode X locks rec but not gap waiting</span><br><span class="line">Record lock, heap no 4 PHYSICAL RECORD: n_fields 4; compact format; info bits 32</span><br><span class="line"> 0: len 4; hex 00000003; asc     ;;</span><br><span class="line"> 1: len 6; hex 000000009a32; asc      2;;</span><br><span class="line"> 2: len 7; hex 01000001462e1f; asc     F. ;;</span><br><span class="line"> 3: len 2; hex 6363; asc cc;;</span><br></pre></td></tr></table></figure>
+
+<p>申请ID=3上的X锁时发生了所等待，执行的语句是:DELETE FROM t1 WHERE id = 3，那么可以得出39474在id=3上持有了X锁，但是在死锁日志中并没有显示出事务39474持有锁的信息<br>那么这两个事务加锁的顺序应是:<br>    1.    事务39474持有了id=3上的X锁<br>    2.    事务39475持有了id=4上的X锁<br>    3.    事务39474申请id=4上X锁时发生了锁等待执行的语句是:DELETE FROM t1 WHERE id = 4<br>    4.    事务39475申请id=3上X锁时触发了死锁，因为此时双方都在申请对方持有的锁不能进行下去了。</p>
+<ul>
+<li><p>事务2被回滚</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">*** WE ROLL BACK TRANSACTION (2)</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>事务39475持有ID = 4， 5， 6上的X锁是由哪个语句引起的，无法直观从死锁日志里看出。可以通过打开general日志或者binlog或者业务代码来查看整个事务逻辑</p>
+</li>
+</ul>
+<h2 id="实验步骤及表结构"><a href="#实验步骤及表结构" class="headerlink" title="实验步骤及表结构"></a>实验步骤及表结构</h2><p>搭建可按实验步骤自己模拟测试，表结构及数据如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">CREATE TABLE t1 (id int unsigned NOT NULL PRIMARY KEY, c1</span><br><span class="line">varchar(10));</span><br><span class="line">INSERT INTO t1 VALUES (1, &#39;aa&#39;), (2, &#39;bb&#39;), (3, &#39;cc&#39;), (4, &#39;dd&#39;), (5, &#39;ee&#39;), (6, &#39;ff&#39;);</span><br></pre></td></tr></table></figure>
+<p>操作步骤如表所示:</p>
+<table>
+<thead>
+<tr>
+<th>Session1</th>
+<th>Session2</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>START TRANSACTION;<br>  DELETE FROM t1 WHERE id = 1;</td>
+<td></td>
+</tr>
+<tr>
+<td>&nbsp;</td>
+<td>START TRANSACTION;<br>DELETE FROM t1 WHERE id = 6;</td>
+</tr>
+<tr>
+<td>DELETE FROM t1 WHERE id = 2;</td>
+<td></td>
+</tr>
+<tr>
+<td>&nbsp;</td>
+<td>DELETE FROM t1 WHERE id = 5;</td>
+</tr>
+<tr>
+<td>DELETE FROM t1 WHERE id = 3;</td>
+<td></td>
+</tr>
+<tr>
+<td>&nbsp;</td>
+<td>DELETE FROM t1 WHERE id = 4;</td>
+</tr>
+<tr>
+<td>DELETE FROM t1 WHERE id = 4;</td>
+<td></td>
+</tr>
+<tr>
+<td>&nbsp;</td>
+<td>DELETE FROM t1 WHERE id = 3;<br>//发生死锁</td>
+</tr>
+</tbody></table>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>这个案例根本原因是两个会话同时删除数据时，没有控制好删除的顺序造成了死锁，这就需要我们在做应用开发时对数据库操作一定要注意操作数据的前后关系、是否有数据依赖、会话之间是否会操作相同的数据。<br>通过这个案例我们也了解到了应如何去阅读和分析死锁日志。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://yoursite.com/2019/02/28/%E5%A6%82%E4%BD%95%E9%98%85%E8%AF%BBMySQL%E6%AD%BB%E9%94%81%E6%97%A5%E5%BF%97-%E5%B9%B6%E5%8F%91%E5%88%A0%E9%99%A4%E6%95%B0%E6%8D%AE%E9%80%A0%E6%88%90%E6%AD%BB%E9%94%81/" data-id="ckdyc8e4m0026rluuhdr9gls9" class="article-share-link">Share</a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Innodb-Lock/" rel="tag">Innodb Lock</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/MySQL/" rel="tag">MySQL</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E6%AD%BB%E9%94%81/" rel="tag">死锁</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+  
+    <article id="post-PostgreSQL-WAL日志文件名解析" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2018/08/07/PostgreSQL-WAL%E6%97%A5%E5%BF%97%E6%96%87%E4%BB%B6%E5%90%8D%E8%A7%A3%E6%9E%90/" class="article-date">
+  <time datetime="2018-08-07T09:18:00.000Z" itemprop="datePublished">2018-08-07</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2018/08/07/PostgreSQL-WAL%E6%97%A5%E5%BF%97%E6%96%87%E4%BB%B6%E5%90%8D%E8%A7%A3%E6%9E%90/">PostgreSQL WAL日志文件名解析</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h1 id="PostgreSQL-WAL日志名解析"><a href="#PostgreSQL-WAL日志名解析" class="headerlink" title="PostgreSQL WAL日志名解析"></a>PostgreSQL WAL日志名解析</h1><h2 id="日志名组成"><a href="#日志名组成" class="headerlink" title="日志名组成"></a>日志名组成</h2><p>在PG中日志名是一串数字，刚开始接触PG的朋友对名字都有些疑惑，在PG中日志名是由16进制命名总共24个字符由三部分组成:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">0000000100000001000000C4</span><br><span class="line">00000001 &#x2F;&#x2F;时间线ID</span><br><span class="line">00000001 &#x2F;&#x2F;LogId</span><br><span class="line">000000C4 &#x2F;&#x2F;logSeg</span><br></pre></td></tr></table></figure>
+
+<h2 id="如何计算？"><a href="#如何计算？" class="headerlink" title="如何计算？"></a>如何计算？</h2><p>我们知道由三部分组成，那么又是如何计算呢？公式如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">WAL segment file name &#x3D; timelineId +(uint32)LSN−1 &#x2F; (16M ∗ 256） + (uint32)(LSN − 1 &#x2F; 16M) % 256</span><br></pre></td></tr></table></figure>
+<p>我们算一个试一试.查看当前LSN位置</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">postgres&#x3D;# select pg_current_wal_lsn();</span><br><span class="line"> pg_current_wal_lsn</span><br><span class="line">--------------------</span><br><span class="line"> 1&#x2F;C469AA30</span><br><span class="line">(1 row)</span><br></pre></td></tr></table></figure>
+<p>这里的LSN是’ 1/C469AA30’ 我们转换为十进制数:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">postgres&#x3D;# select x&#39;1C469AA30&#39;::bigint;</span><br><span class="line">    int8</span><br><span class="line">------------</span><br><span class="line"> 7590226480</span><br><span class="line">(1 row)</span><br></pre></td></tr></table></figure>
+<p>利用公式计算:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">logSeg:</span><br><span class="line">postgres&#x3D;# select ((7590226480 - 1) &#x2F; (16 * 1024 * 1024 )) % 256 ;</span><br><span class="line"> ?column?</span><br><span class="line">----------</span><br><span class="line">      196</span><br><span class="line">(1 row)</span><br><span class="line">196是十进制数 转换为16 进制为 c4</span><br><span class="line">postgres&#x3D;# select to_hex(196);</span><br><span class="line"> to_hex</span><br><span class="line">--------</span><br><span class="line"> c4</span><br><span class="line">(1 row)</span><br><span class="line"></span><br><span class="line">LogId:</span><br><span class="line">postgres&#x3D;# select ((7590226480 - 1) &#x2F; (16::bigint * 1024::bigint * 1024::bigint * 256::bigint) :: int8);</span><br><span class="line"> ?column?</span><br><span class="line">----------</span><br><span class="line">        1</span><br><span class="line">(1 row)</span><br><span class="line">得出的LogId等于1</span><br><span class="line"></span><br><span class="line">时间线ID:</span><br><span class="line"></span><br><span class="line">postgres@coredumped  ~  pg_controldata|grep TimeLine</span><br><span class="line">Latest checkpoint&#39;s TimeLineID:       1</span><br><span class="line">Latest checkpoint&#39;s PrevTimeLineID:   1</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>算出来的值与通过函数查询的一致:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">postgres&#x3D;# select pg_walfile_name(&#39;1&#x2F;C469AA30&#39;);</span><br><span class="line">     pg_walfile_name</span><br><span class="line">--------------------------</span><br><span class="line"> 0000000100000001000000C4</span><br><span class="line">(1 row)</span><br></pre></td></tr></table></figure>
+
+<h2 id="通过源码分析"><a href="#通过源码分析" class="headerlink" title="通过源码分析"></a>通过源码分析</h2><p>上述的公式也是在网站中看到，特意查看了下PG代码确认下正确性:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; 这里是计算一个logSegNo</span><br><span class="line">#define XLByteToPrevSeg(xlrp, logSegNo) \</span><br><span class="line">      logSegNo &#x3D; ((xlrp) - 1) &#x2F; XLogSegSize</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;XLOG_SEG_SIZE 定义</span><br><span class="line">#define XLOG_SEG_SIZE (16 * 1024 * 1024)</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;这块是拼文件名地方</span><br><span class="line">#define XLogFilePath(path, tli, logSegNo)   \</span><br><span class="line">      snprintf(path, MAXPGPATH, XLOGDIR &quot;&#x2F;%08X%08X%08X&quot;, tli,</span><br><span class="line">              ¦(uint32) ((logSegNo) &#x2F; XLogSegmentsPerXLogId),</span><br><span class="line">              ¦(uint32) ((logSegNo) % XLogSegmentsPerXLogId))</span><br><span class="line"></span><br><span class="line">LogId与logSeg 分别是LogSegNo除XLogSegmentsPerXLogId或者是对XLogSegmentsPerXLogId取模，那么XLogSegmentsPerXLogId又是什么呢？</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;看到XLogSegmentsPerXLogId的定义我们可以自己计算下</span><br><span class="line">#define XLogSegmentsPerXLogId   (UINT64CONST(0x100000000) &#x2F; XLOG_SEG_SIZE)</span><br><span class="line"></span><br><span class="line">postgres&#x3D;# select x&#39;100000000&#39;::bigint &#x2F; (16 * 1024 * 1024);</span><br><span class="line"> ?column?</span><br><span class="line">----------</span><br><span class="line">      256</span><br><span class="line">(1 row)</span><br><span class="line">这个值就是256</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>WAL日志命名感觉上并不像MySQL Binlog日志那么直观，有时候感觉会容易混乱，大家学习时可以多进行研究多做实验，这样对自己也是一种提高。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://yoursite.com/2018/08/07/PostgreSQL-WAL%E6%97%A5%E5%BF%97%E6%96%87%E4%BB%B6%E5%90%8D%E8%A7%A3%E6%9E%90/" data-id="ckdyc8e3w000nrluu0dor0ts8" class="article-share-link">Share</a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/PostgreSQL/" rel="tag">PostgreSQL</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/WAL%E6%97%A5%E5%BF%97/" rel="tag">WAL日志</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+  
+    <article id="post-PostgreSQL流复制搭建" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2018/07/22/PostgreSQL%E6%B5%81%E5%A4%8D%E5%88%B6%E6%90%AD%E5%BB%BA/" class="article-date">
+  <time datetime="2018-07-22T03:34:14.000Z" itemprop="datePublished">2018-07-22</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2018/07/22/PostgreSQL%E6%B5%81%E5%A4%8D%E5%88%B6%E6%90%AD%E5%BB%BA/">PostgreSQL流复制搭建</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h1 id="PostgreSQL流复制搭建"><a href="#PostgreSQL流复制搭建" class="headerlink" title="PostgreSQL流复制搭建"></a>PostgreSQL流复制搭建</h1><blockquote>
+<p>PG的流复制类似于Oracle中的DG，利用WAL(Redo)日志传输属于物理复制，优点在于延迟较小</p>
+</blockquote>
+<h2 id="搭建步骤"><a href="#搭建步骤" class="headerlink" title="搭建步骤"></a>搭建步骤</h2><h3 id="环境信息"><a href="#环境信息" class="headerlink" title="环境信息"></a>环境信息</h3><p>主库为已初始化好数据库PG实例，备库为已安装好软件但未初始化的数据库</p>
+<table>
+<thead>
+<tr>
+<th>ip</th>
+<th>角色</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>192.168.56.39</td>
+<td>主库</td>
+</tr>
+<tr>
+<td>192.168.56.40</td>
+<td>备库</td>
+</tr>
+</tbody></table>
+<h3 id="主库需配置的参数"><a href="#主库需配置的参数" class="headerlink" title="主库需配置的参数"></a>主库需配置的参数</h3><ul>
+<li>wal_level 应设置为replica, or logical</li>
+<li>max_wal_senders 默认是10 ， 不要设置为小于2</li>
+<li>synchronous_standby_names 如果使用同步复制，这里需要设置standby的名字</li>
+<li>wal_keep_segments  设置主库上wal的保留个数，防止WAL日志被删除但还未传送到备库上</li>
+<li>synchronous_commit 同步复制选项<ul>
+<li>设置为on，代表需要等待备库应用完事务日志并且数据刷到磁盘中，主库才可以返回成功</li>
+<li>设置为remote_apply ，代表需要等待备库应用完事务日志，主库即可返回成功</li>
+<li>设置为remote_write，代表需要等待备库将事务日志写入到磁盘中，主库即可返回成功</li>
+<li>设置为local，代表事务日志写入到主库磁盘中，主库即可返回成功 // 在同步复制中不能设置为local</li>
+<li>pg_hba.conf 文件中需要添加repliaction 的权限<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">host    replication     all             0.0.0.0&#x2F;0               trust</span><br></pre></td></tr></table></figure>
+这里注意，必须要配置replication权限<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">host    all             all             0.0.0.0&#x2F;0               trust</span><br></pre></td></tr></table></figure>
+这里all 是不包括replication权限的</li>
+</ul>
+</li>
+<li>hot_standby 设置为ON，这样备库可以供查询使用<h3 id="使用pg-basebackup搭建基础备份"><a href="#使用pg-basebackup搭建基础备份" class="headerlink" title="使用pg_basebackup搭建基础备份"></a>使用pg_basebackup搭建基础备份</h3>备库上使用pg_basebackup拉取主库数据，作为基础备份,数据库拉取到/pgdata目录下<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[postgres@pg40 ~]$ pg_basebackup -D &#x2F;pgdata&#x2F; -h 192.168.56.39 -R -X s -P</span><br><span class="line">335994&#x2F;335994 kB (100%), 1&#x2F;1 tablespace</span><br></pre></td></tr></table></figure>
+
+</li>
+</ul>
+<h3 id="编辑recovery-conf文件"><a href="#编辑recovery-conf文件" class="headerlink" title="编辑recovery.conf文件"></a>编辑recovery.conf文件</h3><p>我们使用了-R参数，在拉取的备份文件中会自动生成recovery文件</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">standby_mode &#x3D; &#39;on&#39;</span><br><span class="line">recovery_target_timeline &#x3D; &#39;latest&#39;</span><br><span class="line">primary_conninfo &#x3D; &#39;application_name&#x3D;stb40 user&#x3D;postgres passfile&#x3D;&#39;&#39;&#x2F;home&#x2F;postgres&#x2F;.pgpass&#39;&#39; host&#x3D;192.168.56.39 port&#x3D;5432 sslmode&#x3D;prefer sslcompression&#x3D;1 target_session_attrs&#x3D;any&#39;</span><br></pre></td></tr></table></figure>
+
+<h3 id="启动数据库"><a href="#启动数据库" class="headerlink" title="启动数据库"></a>启动数据库</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pg_ctl start -D &#x2F;pgdata&#x2F;</span><br></pre></td></tr></table></figure>
+
+<h3 id="监控流复制"><a href="#监控流复制" class="headerlink" title="监控流复制"></a>监控流复制</h3><p>在主库上查看</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">postgres&#x3D;# select * from pg_stat_replication ;</span><br><span class="line">-[ RECORD 1 ]----+------------------------------</span><br><span class="line">pid              | 10807</span><br><span class="line">usesysid         | 10</span><br><span class="line">usename          | postgres</span><br><span class="line">application_name | stb40</span><br><span class="line">client_addr      | 192.168.56.40</span><br><span class="line">client_hostname  |</span><br><span class="line">client_port      | 50660</span><br><span class="line">backend_start    | 2018-05-06 23:27:42.625869+08</span><br><span class="line">backend_xmin     |</span><br><span class="line">state            | streaming</span><br><span class="line">sent_lsn         | 2&#x2F;95000140</span><br><span class="line">write_lsn        | 2&#x2F;95000140</span><br><span class="line">flush_lsn        | 2&#x2F;95000140</span><br><span class="line">replay_lsn       | 2&#x2F;95000140</span><br><span class="line">write_lag        |</span><br><span class="line">flush_lag        |</span><br><span class="line">replay_lag       |</span><br><span class="line">sync_priority    | 0</span><br><span class="line">sync_state       | async</span><br></pre></td></tr></table></figure>
+
+<h3 id="如何判断实例为主库还是备库"><a href="#如何判断实例为主库还是备库" class="headerlink" title="如何判断实例为主库还是备库"></a>如何判断实例为主库还是备库</h3><p>使用pg_controldata查看</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">[postgres@pg40 ~]$ pg_controldata |grep cluster</span><br><span class="line">Database cluster state:               in archive recovery &#x2F;&#x2F;备库</span><br><span class="line"></span><br><span class="line">[postgres@pg39 log]$ pg_controldata |grep cluster</span><br><span class="line">Database cluster state:               in production &#x2F;&#x2F;主库</span><br></pre></td></tr></table></figure>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://yoursite.com/2018/07/22/PostgreSQL%E6%B5%81%E5%A4%8D%E5%88%B6%E6%90%AD%E5%BB%BA/" data-id="ckdyc8e3y000rrluu06zi17ki" class="article-share-link">Share</a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/PostgreSQL/" rel="tag">PostgreSQL</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E5%A4%8D%E5%88%B6/" rel="tag">复制</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+  
+    <article id="post-SQL优化-子查询结果集过多" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2018/07/05/SQL%E4%BC%98%E5%8C%96-%E5%AD%90%E6%9F%A5%E8%AF%A2%E7%BB%93%E6%9E%9C%E9%9B%86%E8%BF%87%E5%A4%9A/" class="article-date">
+  <time datetime="2018-07-05T06:24:48.000Z" itemprop="datePublished">2018-07-05</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2018/07/05/SQL%E4%BC%98%E5%8C%96-%E5%AD%90%E6%9F%A5%E8%AF%A2%E7%BB%93%E6%9E%9C%E9%9B%86%E8%BF%87%E5%A4%9A/">SQL优化-子查询结果集过多</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h1 id="SQL优化-子查询结果集过多"><a href="#SQL优化-子查询结果集过多" class="headerlink" title="SQL优化-子查询结果集过多"></a>SQL优化-子查询结果集过多</h1><p>这个优化案例是一个实际的业务场景，朋友公司从商业数据库迁移到PG中，测试中发现性能存在问题，同等数据量在商业数据库中不到秒级就出结果，但是在PG中缺需要几分钟甚至更久。</p>
+<p>经过优化对SQL的改写效果还是不错，这里与大家分享下。</p>
+<h2 id="现象"><a href="#现象" class="headerlink" title="现象"></a>现象</h2><p>最大的一张主表T98_SYT_ACCT_STAT_D_1有5.8亿，其余的都是百万级<br>原始SQL语句如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br></pre></td><td class="code"><pre><span class="line">select</span><br><span class="line">        org.Internal_Org_Id    as  Stat_Org_Id     </span><br><span class="line">       ,(case when org.Internal_Org_Id &#x3D; &#39;999999888&#39;</span><br><span class="line">              then &#39;合计&#39;</span><br><span class="line">              else org.Org_Name</span><br><span class="line">              end )            as  Stat_Org_Name   </span><br><span class="line">       ,(case when org.Internal_Org_Id &#x3D; &#39;999999888&#39;</span><br><span class="line">              then 1</span><br><span class="line">              else 2</span><br><span class="line">              end)             as ORDERID</span><br><span class="line">       ,sum(data.jon_acct_num)         as   jon_acct_num     </span><br><span class="line">       ,sum(data.jon_cross_num)        as   jon_cross_num   </span><br><span class="line">       ,sum(data.jon_pay_num)          as   jon_pay_num      </span><br><span class="line">       ,sum(data.total_jon_num)        as   total_jon_num    </span><br><span class="line">       ,sum(data.des_acct_num)         as   des_acct_num     </span><br><span class="line">       ,sum(data.des_cross_num)        as   des_cross_num    </span><br><span class="line">       ,sum(data.des_pay_num)          as   des_pay_num      </span><br><span class="line">       ,sum(data.total_des_num)        as   total_des_num    </span><br><span class="line">       ,sum(data.accjon_acct_num)      as   accjon_acct_num  </span><br><span class="line">       ,sum(data.accjon_cross_num)     as   accjon_cross_num </span><br><span class="line">       ,sum(data.accjon_pay_num)       as   accjon_pay_num   </span><br><span class="line">       ,sum(data.total_accjon_num)     as   total_accjon_num </span><br><span class="line">       ,sum(data.accjon_acct_amt)      as   accjon_acct_amt  </span><br><span class="line">       ,sum(data.accjon_cross_amt)     as   accjon_cross_amt </span><br><span class="line">       ,sum(data.accjon_acct1_amt)     as   accjon_acct1_amt </span><br><span class="line">       ,sum(data.accjon_acct0_amt)     as   accjon_acct0_amt </span><br><span class="line">       ,sum(data.accjon_pay_amt)       as   accjon_pay_amt   </span><br><span class="line">       ,sum(data.total_accjon_amt)     as   total_accjon_amt </span><br><span class="line">  from cimfbview.t98_int_org_app_rela_h org</span><br><span class="line">  left join</span><br><span class="line">  (</span><br><span class="line">       select</span><br><span class="line">        syt.Stat_Org_Id             as   Stat_Org_Id        </span><br><span class="line">       ,sum(syt.jon_acct_num)       as   jon_acct_num       </span><br><span class="line">       ,sum(syt.jon_cross_num)      as   jon_cross_num      </span><br><span class="line">       ,sum(syt.jon_pay_num)        as   jon_pay_num        </span><br><span class="line">       ,sum(syt.total_jon_num)      as   total_jon_num     </span><br><span class="line">       ,sum(syt.des_acct_num)       as   des_acct_num       </span><br><span class="line">       ,sum(syt.des_cross_num)      as   des_cross_num      </span><br><span class="line">       ,sum(syt.des_pay_num)        as   des_pay_num        </span><br><span class="line">       ,sum(syt.total_des_num)      as   total_des_num      </span><br><span class="line">       ,sum(syt.accjon_acct_num)    as   accjon_acct_num    </span><br><span class="line">       ,sum(syt.accjon_cross_num)   as   accjon_cross_num   </span><br><span class="line">       ,sum(syt.accjon_pay_num)     as   accjon_pay_num     </span><br><span class="line">       ,sum(syt.total_accjon_num)   as   total_accjon_num   </span><br><span class="line">       ,sum(syt.accjon_acct_amt)    as   accjon_acct_amt    </span><br><span class="line">       ,sum(syt.accjon_cross_amt)   as   accjon_cross_amt   </span><br><span class="line">       ,sum(syt.accjon_acct1_amt)   as   accjon_acct1_amt   </span><br><span class="line">       ,sum(syt.accjon_acct0_amt)   as   accjon_acct0_amt   </span><br><span class="line">       ,sum(syt.accjon_pay_amt)     as   accjon_pay_amt     </span><br><span class="line">       ,sum(syt.total_accjon_amt)   as   total_accjon_amt   </span><br><span class="line">  from T98_SYT_ACCT_STAT_D_1 syt</span><br><span class="line">  where syt.Stat_Period_Cd &#x3D; &#39;1&#39;   </span><br><span class="line">        and syt.Summ_Date  &#x3D;  to_date(&#39;20161001&#39;,&#39;yyyymmdd&#39;)</span><br><span class="line">        and syt.Stat_Org_Attr_Cd &#x3D; &#39;9&#39;</span><br><span class="line">        group by 1</span><br><span class="line">  )     data</span><br><span class="line">     on org.Internal_Org_Id&#x3D;data.Stat_Org_Id</span><br><span class="line">  where  (org.Internal_Org_Id &#x3D; &#39;999999888&#39;</span><br><span class="line">        OR ORG.Parent_Int_Org_Id &#x3D; &#39;999999888&#39;</span><br><span class="line">            or &#39;999999888&#39; &#x3D;</span><br><span class="line">            (</span><br><span class="line">          case</span><br><span class="line">            when &#39;1&#39; &#x3D; &#39;1&#39; and &#39;2&#39; in (&#39;2&#39;,&#39;3&#39;)  then nation_org_id</span><br><span class="line">            when &#39;1&#39; &#x3D; &#39;2&#39; and &#39;2&#39; in (&#39;3&#39;,&#39;4&#39;,&#39;5&#39;) then prov_org_id</span><br><span class="line">            when &#39;1&#39; &#x3D; &#39;3&#39; and &#39;2&#39; in (&#39;4&#39;,&#39;5&#39;) then city_org_id</span><br><span class="line">            when &#39;1&#39; &#x3D; &#39;4&#39; and &#39;2&#39; &#x3D; &#39;5&#39; then county_org_id</span><br><span class="line">          else Internal_Org_Id</span><br><span class="line">          end</span><br><span class="line">            )</span><br><span class="line">          and org.Int_Org_level_cd in (&#39;1&#39;,&#39;2&#39;)  </span><br><span class="line">       )</span><br><span class="line">          and org.Int_Org_Stru_Type_Cd&#x3D;&#39;1&#39;</span><br><span class="line">          and org.Int_Org_Type_Cd in (&#39;01&#39;,&#39;07&#39;,&#39;10&#39;,&#39;05&#39;,&#39;99&#39;)</span><br><span class="line">          and org.Start_Dt &lt;&#x3D; to_date(&#39;20161001&#39;,&#39;yyyymmdd&#39;)</span><br><span class="line">          and org.End_Dt &gt; to_date(&#39;20161001&#39;,&#39;yyyymmdd&#39;)</span><br><span class="line">  group by 1,2,3;</span><br></pre></td></tr></table></figure>
+<p>查询比较慢我们首先查看执行计划:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line">GroupAggregate  (cost&#x3D;14409317.97..14409320.04 rows&#x3D;18 width&#x3D;622) (actual time&#x3D;472510.542..472510.766 rows&#x3D;37 loops&#x3D;1)</span><br><span class="line">   Group Key: a.internal_org_id, (CASE WHEN (a.internal_org_id &#x3D; &#39;999999888&#39;::bpchar) THEN &#39;合计&#39;::character varying ELSE COALESCE</span><br><span class="line">(org3.org_name, a.org_name) END), (CASE WHEN (a.internal_org_id &#x3D; &#39;999999888&#39;::bpchar) THEN 1 ELSE 2 END)</span><br><span class="line">   -&gt;  Sort  (cost&#x3D;14409317.97..14409318.02 rows&#x3D;18 width&#x3D;622) (actual time&#x3D;472510.519..472510.542 rows&#x3D;37 loops&#x3D;1)</span><br><span class="line">         Sort Key: a.internal_org_id, (CASE WHEN (a.internal_org_id &#x3D; &#39;999999888&#39;::bpchar) THEN &#39;合计&#39;::character varying ELSE COA</span><br><span class="line">LESCE(org3.org_name, a.org_name) END), (CASE WHEN (a.internal_org_id &#x3D; &#39;999999888&#39;::bpchar) THEN 1 ELSE 2 END)</span><br><span class="line">         Sort Method: quicksort  Memory: 34kB</span><br><span class="line">         -&gt;  Merge Left Join  (cost&#x3D;14404111.77..14409317.60 rows&#x3D;18 width&#x3D;622) (actual time&#x3D;472016.735..472510.437 rows&#x3D;37 loops&#x3D;</span><br><span class="line">1)</span><br><span class="line">               Merge Cond: (a.internal_org_id &#x3D; syt.stat_org_id)</span><br><span class="line">               -&gt;  Sort  (cost&#x3D;68934.45..68934.49 rows&#x3D;18 width&#x3D;76) (actual time&#x3D;452.103..452.133 rows&#x3D;37 loops&#x3D;1)</span><br><span class="line">                     Sort Key: a.internal_org_id</span><br><span class="line">                     Sort Method: quicksort  Memory: 29kB</span><br><span class="line">                     -&gt;  Gather  (cost&#x3D;1000.42..68934.07 rows&#x3D;18 width&#x3D;76) (actual time&#x3D;131.356..451.966 rows&#x3D;37 loops&#x3D;1)</span><br><span class="line">                           Workers Planned: 2</span><br><span class="line">                           Workers Launched: 2</span><br><span class="line">                           -&gt;  Nested Loop Left Join  (cost&#x3D;0.42..67932.27 rows&#x3D;8 width&#x3D;76) (actual time&#x3D;58.910..398.641 rows&#x3D;12 l</span><br><span class="line">oops&#x3D;3)</span><br><span class="line">                                 -&gt;  Parallel Seq Scan on t98_int_org_app_rela_h a  (cost&#x3D;0.00..67864.63 rows&#x3D;8 width&#x3D;51) (actual</span><br><span class="line">time&#x3D;58.773..398.006 rows&#x3D;12 loops&#x3D;3)</span><br><span class="line">                                       Filter: ((int_org_stru_type_cd &#x3D; &#39;1&#39;::bpchar) AND (start_dt &lt;&#x3D; to_date(&#39;20161001&#39;::text, &#39;y</span><br><span class="line">yyymmdd&#39;::text)) AND (end_dt &gt; to_date(&#39;20161001&#39;::text, &#39;yyyymmdd&#39;::text)) AND (int_org_type_cd &#x3D; ANY (&#39;&#123;01,07,10,05,99&#125;&#39;::bpchar</span><br><span class="line">[])) AND ((internal_org_id &#x3D; &#39;999999888&#39;::bpchar) OR (parent_int_org_id &#x3D; &#39;999999888&#39;::bpchar) OR ((&#39;999999888&#39;::bpchar &#x3D; CASE WHE</span><br><span class="line">N (&#39;2&#39;::text &#x3D; ANY (&#39;&#123;2,3&#125;&#39;::text[])) THEN nation_org_id ELSE internal_org_id END) AND (int_org_level_cd &#x3D; ANY (&#39;&#123;1,2&#125;&#39;::bpchar[])</span><br><span class="line">))))</span><br><span class="line">                                       Rows Removed by Filter: 549182</span><br><span class="line">                                 -&gt;  Index Scan using idx_3 on t04_sys_organization org3  (cost&#x3D;0.42..8.44 rows&#x3D;1 width&#x3D;45) (actua</span><br><span class="line">l time&#x3D;0.041..0.042 rows&#x3D;1 loops&#x3D;37)</span><br><span class="line">                                       Index Cond: ((a.new_org_id &#x3D; internal_org_id) AND (sys_id &#x3D; &#39;S20&#39;::character(3)))</span><br><span class="line">                                       Filter: (province_cd &#x3D; 71)</span><br><span class="line">               -&gt;  GroupAggregate  (cost&#x3D;14335177.32..14339939.28 rows&#x3D;35483 width&#x3D;586) (actual time&#x3D;471564.595..472002.661 rows&#x3D;5</span><br><span class="line">6831 loops&#x3D;1)</span><br><span class="line">                     Group Key: syt.stat_org_id</span><br><span class="line">                     -&gt;  Sort  (cost&#x3D;14335177.32..14335317.84 rows&#x3D;56208 width&#x3D;100) (actual time&#x3D;471564.558..471606.793 rows&#x3D;56832</span><br><span class="line"> loops&#x3D;1)</span><br><span class="line">                           Sort Key: syt.stat_org_id</span><br><span class="line">                           Sort Method: quicksort  Memory: 9529kB</span><br><span class="line">                           -&gt;  Gather  (cost&#x3D;1000.00..14330742.93 rows&#x3D;56208 width&#x3D;100) (actual time&#x3D;70985.797..471057.045 rows&#x3D;56</span><br><span class="line">833 loops&#x3D;1)</span><br><span class="line">                                 Workers Planned: 2</span><br><span class="line">                                 Workers Launched: 2</span><br><span class="line">                                 -&gt;  Parallel Seq Scan on t98_syt_acct_stat_d_1 syt  (cost&#x3D;0.00..14324122.13 rows&#x3D;23420 width&#x3D;100)</span><br><span class="line"> (actual time&#x3D;71007.859..471086.192 rows&#x3D;18944 loops&#x3D;3)</span><br><span class="line">                                       Filter: ((stat_period_cd &#x3D; &#39;1&#39;::bpchar) AND (stat_org_attr_cd &#x3D; &#39;9&#39;::bpchar) AND (summ_date</span><br><span class="line"> &#x3D; to_date(&#39;20161001&#39;::text, &#39;yyyymmdd&#39;::text)))</span><br><span class="line">                                       Rows Removed by Filter: 186677461</span><br><span class="line"> Planning time: 2.688 ms</span><br><span class="line"> Execution time: 472512.890 ms</span><br></pre></td></tr></table></figure>
+<p>通过执行计划看到t98_syt_acct_stat_d_1表并没有走到索引(其实表上是有索引)，通过调整random_page_cost,seq_page_cost让优化器更偏向于走索引，得到的执行计划如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">GroupAggregate  (cost&#x3D;9913849.82..9913851.89 rows&#x3D;18 width&#x3D;622) (actual time&#x3D;166908.251..166908.659 rows&#x3D;37 loops&#x3D;1)</span><br><span class="line">   Group Key: a.internal_org_id, (CASE WHEN (a.internal_org_id &#x3D; &#39;999999888&#39;::bpchar) THEN &#39;合计&#39;::character varying ELSE COALESCE</span><br><span class="line">(org3.org_name, a.org_name) END), (CASE WHEN (a.internal_org_id &#x3D; &#39;999999888&#39;::bpchar) THEN 1 ELSE 2 END)</span><br><span class="line">   -&gt;  Sort  (cost&#x3D;9913849.82..9913849.86 rows&#x3D;18 width&#x3D;622) (actual time&#x3D;166908.218..166908.259 rows&#x3D;37 loops&#x3D;1)</span><br><span class="line">         Sort Key: a.internal_org_id, (CASE WHEN (a.internal_org_id &#x3D; &#39;999999888&#39;::bpchar) THEN &#39;合计&#39;::character varying ELSE COA</span><br><span class="line">LESCE(org3.org_name, a.org_name) END), (CASE WHEN (a.internal_org_id &#x3D; &#39;999999888&#39;::bpchar) THEN 1 ELSE 2 END)</span><br><span class="line">         Sort Method: quicksort  Memory: 34kB</span><br><span class="line">         -&gt;  Nested Loop Left Join  (cost&#x3D;1.43..9913849.44 rows&#x3D;18 width&#x3D;622) (actual time&#x3D;138.763..166907.954 rows&#x3D;37 loops&#x3D;1)</span><br><span class="line">               -&gt;  Merge Left Join  (cost&#x3D;1.00..9913805.16 rows&#x3D;18 width&#x3D;627) (actual time&#x3D;138.717..166905.751 rows&#x3D;37 loops&#x3D;1)</span><br><span class="line">                     Merge Cond: (a.internal_org_id &#x3D; syt.stat_org_id)</span><br><span class="line">                     -&gt;  Index Scan using idx_2 on t98_int_org_app_rela_h a  (cost&#x3D;0.43..74380.19 rows&#x3D;18 width&#x3D;51) (actual time&#x3D;1</span><br><span class="line">4.101..2392.532 rows&#x3D;37 loops&#x3D;1)</span><br><span class="line">                           Index Cond: (int_org_stru_type_cd &#x3D; &#39;1&#39;::bpchar)</span><br><span class="line">                           Filter: ((start_dt &lt;&#x3D; to_date(&#39;20161001&#39;::text, &#39;yyyymmdd&#39;::text)) AND (end_dt &gt; to_date(&#39;20161001&#39;::te</span><br><span class="line">xt, &#39;yyyymmdd&#39;::text)) AND (int_org_type_cd &#x3D; ANY (&#39;&#123;01,07,10,05,99&#125;&#39;::bpchar[])) AND ((internal_org_id &#x3D; &#39;999999888&#39;::bpchar) OR</span><br><span class="line">(parent_int_org_id &#x3D; &#39;999999888&#39;::bpchar) OR ((&#39;999999888&#39;::bpchar &#x3D; CASE WHEN (&#39;2&#39;::text &#x3D; ANY (&#39;&#123;2,3&#125;&#39;::text[])) THEN nation_org</span><br><span class="line">_id ELSE internal_org_id END) AND (int_org_level_cd &#x3D; ANY (&#39;&#123;1,2&#125;&#39;::bpchar[])))))</span><br><span class="line">                           Rows Removed by Filter: 415239</span><br><span class="line">                     -&gt;  GroupAggregate  (cost&#x3D;0.58..9838981.24 rows&#x3D;35483 width&#x3D;586) (actual time&#x3D;69.743..164300.902 rows&#x3D;56831 l</span><br><span class="line">oops&#x3D;1)</span><br><span class="line">                           Group Key: syt.stat_org_id</span><br><span class="line">                           -&gt;  Index Scan using idx_1 on t98_syt_acct_stat_d_1 syt  (cost&#x3D;0.58..9834359.79 rows&#x3D;56208 width&#x3D;100) (</span><br><span class="line">actual time&#x3D;45.638..163209.973 rows&#x3D;56832 loops&#x3D;1)</span><br><span class="line">                                 Index Cond: ((summ_date &#x3D; to_date(&#39;20161001&#39;::text, &#39;yyyymmdd&#39;::text)) AND (stat_period_cd &#x3D; &#39;1&#39;:</span><br><span class="line">:bpchar) AND (stat_org_attr_cd &#x3D; &#39;9&#39;::bpchar))</span><br><span class="line">               -&gt;  Index Scan using idx_3 on t04_sys_organization org3  (cost&#x3D;0.42..2.45 rows&#x3D;1 width&#x3D;45) (actual time&#x3D;0.041..0.04</span><br><span class="line">3 rows&#x3D;1 loops&#x3D;37)</span><br><span class="line">                     Index Cond: ((a.new_org_id &#x3D; internal_org_id) AND (sys_id &#x3D; &#39;S20&#39;::character(3)))</span><br><span class="line">                     Filter: (province_cd &#x3D; 71)</span><br><span class="line"> Planning time: 2.604 ms</span><br><span class="line"> Execution time: 166909.087 ms</span><br></pre></td></tr></table></figure>
+<p>可以看到通过走索引后时间减少了一半多，仔细观察执行计划在此处COST值消耗较大并且后续还有一个Merge Left Join,子查询数据返回太多导致后面做Merge时效率也很低。t98_syt_acct_stat_d_1这个表数据量最大5.8亿</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">Index Scan using idx_1 on t98_syt_acct_stat_d_1 syt  (cost&#x3D;0.58..9834359.79 rows&#x3D;56208 width&#x3D;100) (</span><br><span class="line">actual time&#x3D;45.638..163209.973 rows&#x3D;56832 loops&#x3D;1)</span><br><span class="line">                                 Index Cond: ((summ_date &#x3D; to_date(&#39;20161001&#39;::text, &#39;yyyymmdd&#39;::text)) AND (stat_period_cd &#x3D; &#39;1&#39;:</span><br><span class="line">:bpchar) AND (stat_org_attr_cd &#x3D; &#39;9&#39;::bpchar))</span><br></pre></td></tr></table></figure>
+
+<h2 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案"></a>解决方案</h2><p>我们需要较少子查询返回的结果集，观察SQL语句中的这部分</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">on org.Internal_Org_Id&#x3D;data.Stat_Org_Id</span><br><span class="line">  where  (org.Internal_Org_Id &#x3D; &#39;999999888&#39;</span><br><span class="line">        OR ORG.Parent_Int_Org_Id &#x3D; &#39;999999888&#39;</span><br><span class="line">            or &#39;999999888&#39; &#x3D;</span><br><span class="line">            (</span><br><span class="line">          case</span><br><span class="line">            when &#39;1&#39; &#x3D; &#39;1&#39; and &#39;2&#39; in (&#39;2&#39;,&#39;3&#39;)  then nation_org_id</span><br><span class="line">            when &#39;1&#39; &#x3D; &#39;2&#39; and &#39;2&#39; in (&#39;3&#39;,&#39;4&#39;,&#39;5&#39;) then prov_org_id</span><br><span class="line">            when &#39;1&#39; &#x3D; &#39;3&#39; and &#39;2&#39; in (&#39;4&#39;,&#39;5&#39;) then city_org_id</span><br><span class="line">            when &#39;1&#39; &#x3D; &#39;4&#39; and &#39;2&#39; &#x3D; &#39;5&#39; then county_org_id</span><br><span class="line">          else Internal_Org_Id</span><br><span class="line">          end</span><br><span class="line">            )</span><br><span class="line">          and org.Int_Org_level_cd in (&#39;1&#39;,&#39;2&#39;)  </span><br><span class="line">       )</span><br><span class="line">          and org.Int_Org_Stru_Type_Cd&#x3D;&#39;1&#39;</span><br><span class="line">          and org.Int_Org_Type_Cd in (&#39;01&#39;,&#39;07&#39;,&#39;10&#39;,&#39;05&#39;,&#39;99&#39;)</span><br><span class="line">          and org.Start_Dt &lt;&#x3D; to_date(&#39;20161001&#39;,&#39;yyyymmdd&#39;)</span><br><span class="line">          and org.End_Dt &gt; to_date(&#39;20161001&#39;,&#39;yyyymmdd&#39;)</span><br></pre></td></tr></table></figure>
+<p>org.Internal_Org_Id=data.Stat_Org_Id ， 后面的where条件是org表的过滤条件，我们将此过滤条件放到子查询中减少子查询返回的结果集，这样可以提高效率<br>改写后的SQL及执行计划:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br></pre></td><td class="code"><pre><span class="line"> select</span><br><span class="line">        org.Internal_Org_Id    as  Stat_Org_Id     --机构编号</span><br><span class="line">       ,(case when org.Internal_Org_Id &#x3D; &#39;999999888&#39;</span><br><span class="line">              then &#39;合计&#39;</span><br><span class="line">              else org.Org_Name</span><br><span class="line">              end )            as  Stat_Org_Name   --机构代码</span><br><span class="line">       ,(case when org.Internal_Org_Id &#x3D; &#39;999999888&#39;</span><br><span class="line">              then 1</span><br><span class="line">              else 2</span><br><span class="line">              end)             as ORDERID</span><br><span class="line">       ,sum(data.jon_acct_num)         as   jon_acct_num     </span><br><span class="line">       ,sum(data.jon_cross_num)        as   jon_cross_num    </span><br><span class="line">       ,sum(data.jon_pay_num)          as   jon_pay_num      </span><br><span class="line">       ,sum(data.total_jon_num)        as   total_jon_num    </span><br><span class="line">       ,sum(data.des_acct_num)         as   des_acct_num     </span><br><span class="line">       ,sum(data.des_cross_num)        as   des_cross_num    </span><br><span class="line">       ,sum(data.des_pay_num)          as   des_pay_num      </span><br><span class="line">       ,sum(data.total_des_num)        as   total_des_num    </span><br><span class="line">       ,sum(data.accjon_acct_num)      as   accjon_acct_num  </span><br><span class="line">       ,sum(data.accjon_cross_num)     as   accjon_cross_num </span><br><span class="line">       ,sum(data.accjon_pay_num)       as   accjon_pay_num   </span><br><span class="line">       ,sum(data.total_accjon_num)     as   total_accjon_num </span><br><span class="line">       ,sum(data.accjon_acct_amt)      as   accjon_acct_amt  </span><br><span class="line">       ,sum(data.accjon_cross_amt)     as   accjon_cross_amt </span><br><span class="line">       ,sum(data.accjon_acct1_amt)     as   accjon_acct1_amt </span><br><span class="line">       ,sum(data.accjon_acct0_amt)     as   accjon_acct0_amt </span><br><span class="line">       ,sum(data.accjon_pay_amt)       as   accjon_pay_amt   </span><br><span class="line">       ,sum(data.total_accjon_amt)     as   total_accjon_amt </span><br><span class="line">  from cimfbview.t98_int_org_app_rela_h org</span><br><span class="line">  left join</span><br><span class="line">  (</span><br><span class="line">       select</span><br><span class="line">        syt.Stat_Org_Id             as   Stat_Org_Id        </span><br><span class="line">       ,sum(syt.jon_acct_num)       as   jon_acct_num       </span><br><span class="line">       ,sum(syt.jon_cross_num)      as   jon_cross_num      </span><br><span class="line">       ,sum(syt.jon_pay_num)        as   jon_pay_num        </span><br><span class="line">       ,sum(syt.total_jon_num)      as   total_jon_num      </span><br><span class="line">       ,sum(syt.des_acct_num)       as   des_acct_num       </span><br><span class="line">       ,sum(syt.des_cross_num)      as   des_cross_num      </span><br><span class="line">       ,sum(syt.des_pay_num)        as   des_pay_num        </span><br><span class="line">       ,sum(syt.total_des_num)      as   total_des_num      </span><br><span class="line">       ,sum(syt.accjon_acct_num)    as   accjon_acct_num    </span><br><span class="line">       ,sum(syt.accjon_cross_num)   as   accjon_cross_num   </span><br><span class="line">       ,sum(syt.accjon_pay_num)     as   accjon_pay_num    </span><br><span class="line">       ,sum(syt.total_accjon_num)   as   total_accjon_num   </span><br><span class="line">       ,sum(syt.accjon_acct_amt)    as   accjon_acct_amt    </span><br><span class="line">       ,sum(syt.accjon_cross_amt)   as   accjon_cross_amt   </span><br><span class="line">       ,sum(syt.accjon_acct1_amt)   as   accjon_acct1_amt   </span><br><span class="line">       ,sum(syt.accjon_acct0_amt)   as   accjon_acct0_amt   </span><br><span class="line">       ,sum(syt.accjon_pay_amt)     as   accjon_pay_amt     </span><br><span class="line">       ,sum(syt.total_accjon_amt)   as   total_accjon_amt   </span><br><span class="line">  from T98_SYT_ACCT_STAT_D_1 syt</span><br><span class="line">  where syt.Stat_Period_Cd &#x3D; &#39;1&#39;   </span><br><span class="line">        and syt.Summ_Date  &#x3D;  to_date(&#39;20161001&#39;,&#39;yyyymmdd&#39;)</span><br><span class="line">        and syt.Stat_Org_Attr_Cd &#x3D; &#39;9&#39;</span><br><span class="line">        and syt.Stat_Org_Id in (</span><br><span class="line">        select distinct(Internal_Org_Id) from  t98_int_org_app_rela_h org   where org.Internal_Org_Id &#x3D; &#39;999999888&#39;</span><br><span class="line">        OR ORG.Parent_Int_Org_Id &#x3D; &#39;999999888&#39;</span><br><span class="line">            or &#39;999999888&#39; &#x3D;</span><br><span class="line">            (</span><br><span class="line">          case</span><br><span class="line">            when &#39;1&#39; &#x3D; &#39;1&#39; and &#39;2&#39; in (&#39;2&#39;,&#39;3&#39;)  then nation_org_id</span><br><span class="line">            when &#39;1&#39; &#x3D; &#39;2&#39; and &#39;2&#39; in (&#39;3&#39;,&#39;4&#39;,&#39;5&#39;) then prov_org_id</span><br><span class="line">            when &#39;1&#39; &#x3D; &#39;3&#39; and &#39;2&#39; in (&#39;4&#39;,&#39;5&#39;) then city_org_id</span><br><span class="line">            when &#39;1&#39; &#x3D; &#39;4&#39; and &#39;2&#39; &#x3D; &#39;5&#39; then county_org_id</span><br><span class="line">          else Internal_Org_Id</span><br><span class="line">          end</span><br><span class="line">            )</span><br><span class="line">          and org.Int_Org_level_cd in (&#39;1&#39;,&#39;2&#39;)  </span><br><span class="line">          and org.Int_Org_Stru_Type_Cd&#x3D;&#39;1&#39;</span><br><span class="line">          and org.Int_Org_Type_Cd in (&#39;01&#39;,&#39;07&#39;,&#39;10&#39;,&#39;05&#39;,&#39;99&#39;)</span><br><span class="line">          and org.Start_Dt &lt;&#x3D; to_date(&#39;20161001&#39;,&#39;yyyymmdd&#39;)</span><br><span class="line">          and org.End_Dt &gt; to_date(&#39;20161001&#39;,&#39;yyyymmdd&#39;)</span><br><span class="line"></span><br><span class="line">        )</span><br><span class="line">        group by 1</span><br><span class="line">  )     data</span><br><span class="line">     on org.Internal_Org_Id&#x3D;data.Stat_Org_Id</span><br><span class="line">  where  (org.Internal_Org_Id &#x3D; &#39;999999888&#39;</span><br><span class="line">        OR ORG.Parent_Int_Org_Id &#x3D; &#39;999999888&#39;</span><br><span class="line">            or &#39;999999888&#39; &#x3D;</span><br><span class="line">            (</span><br><span class="line">          case</span><br><span class="line">            when &#39;1&#39; &#x3D; &#39;1&#39; and &#39;2&#39; in (&#39;2&#39;,&#39;3&#39;)  then nation_org_id</span><br><span class="line">            when &#39;1&#39; &#x3D; &#39;2&#39; and &#39;2&#39; in (&#39;3&#39;,&#39;4&#39;,&#39;5&#39;) then prov_org_id</span><br><span class="line">            when &#39;1&#39; &#x3D; &#39;3&#39; and &#39;2&#39; in (&#39;4&#39;,&#39;5&#39;) then city_org_id</span><br><span class="line">            when &#39;1&#39; &#x3D; &#39;4&#39; and &#39;2&#39; &#x3D; &#39;5&#39; then county_org_id</span><br><span class="line">          else Internal_Org_Id</span><br><span class="line">          end</span><br><span class="line">            )</span><br><span class="line">          and org.Int_Org_level_cd in (&#39;1&#39;,&#39;2&#39;)  </span><br><span class="line">       )</span><br><span class="line">          and org.Int_Org_Stru_Type_Cd&#x3D;&#39;1&#39;</span><br><span class="line">          and org.Int_Org_Type_Cd in (&#39;01&#39;,&#39;07&#39;,&#39;10&#39;,&#39;05&#39;,&#39;99&#39;)</span><br><span class="line">          and org.Start_Dt &lt;&#x3D; to_date(&#39;20161001&#39;,&#39;yyyymmdd&#39;)</span><br><span class="line">          and org.End_Dt &gt; to_date(&#39;20161001&#39;,&#39;yyyymmdd&#39;)</span><br><span class="line">  group by 1,2,3;</span><br><span class="line">  </span><br><span class="line"> GroupAggregate  (cost&#x3D;140463.35..140465.42 rows&#x3D;18 width&#x3D;622) (actual time&#x3D;548.831..549.113 rows&#x3D;37 loops&#x3D;1)</span><br><span class="line">   Group Key: a.internal_org_id, (CASE WHEN (a.internal_org_id &#x3D; &#39;999999888&#39;::bpchar) THEN &#39;合计&#39;::character varying ELSE COALESCE</span><br><span class="line">(org3.org_name, a.org_name) END), (CASE WHEN (a.internal_org_id &#x3D; &#39;999999888&#39;::bpchar) THEN 1 ELSE 2 END)</span><br><span class="line">   -&gt;  Sort  (cost&#x3D;140463.35..140463.40 rows&#x3D;18 width&#x3D;622) (actual time&#x3D;548.789..548.817 rows&#x3D;37 loops&#x3D;1)</span><br><span class="line">         Sort Key: a.internal_org_id, (CASE WHEN (a.internal_org_id &#x3D; &#39;999999888&#39;::bpchar) THEN &#39;合计&#39;::character varying ELSE COA</span><br><span class="line">LESCE(org3.org_name, a.org_name) END), (CASE WHEN (a.internal_org_id &#x3D; &#39;999999888&#39;::bpchar) THEN 1 ELSE 2 END)</span><br><span class="line">         Sort Method: quicksort  Memory: 34kB</span><br><span class="line">         -&gt;  Nested Loop Left Join  (cost&#x3D;69906.79..140462.98 rows&#x3D;18 width&#x3D;622) (actual time&#x3D;520.434..548.664 rows&#x3D;37 loops&#x3D;1)</span><br><span class="line">               Join Filter: (a.internal_org_id &#x3D; data.stat_org_id)</span><br><span class="line">               Rows Removed by Join Filter: 669</span><br><span class="line">               -&gt;  Gather  (cost&#x3D;1000.42..68934.07 rows&#x3D;18 width&#x3D;76) (actual time&#x3D;63.704..89.506 rows&#x3D;37 loops&#x3D;1)</span><br><span class="line">                     Workers Planned: 2</span><br><span class="line">                     Workers Launched: 2</span><br><span class="line">                     -&gt;  Nested Loop Left Join  (cost&#x3D;0.42..67932.27 rows&#x3D;8 width&#x3D;76) (actual time&#x3D;61.970..389.321 rows&#x3D;12 loops&#x3D;3</span><br><span class="line">)</span><br><span class="line">                           -&gt;  Parallel Seq Scan on t98_int_org_app_rela_h a  (cost&#x3D;0.00..67864.63 rows&#x3D;8 width&#x3D;51) (actual time&#x3D;6</span><br><span class="line">1.885..388.864 rows&#x3D;12 loops&#x3D;3)</span><br><span class="line">                                 Filter: ((int_org_stru_type_cd &#x3D; &#39;1&#39;::bpchar) AND (start_dt &lt;&#x3D; to_date(&#39;20161001&#39;::text, &#39;yyyymmd</span><br><span class="line">d&#39;::text)) AND (end_dt &gt; to_date(&#39;20161001&#39;::text, &#39;yyyymmdd&#39;::text)) AND (int_org_type_cd &#x3D; ANY (&#39;&#123;01,07,10,05,99&#125;&#39;::bpchar[])) A</span><br><span class="line">ND ((internal_org_id &#x3D; &#39;999999888&#39;::bpchar) OR (parent_int_org_id &#x3D; &#39;999999888&#39;::bpchar) OR ((&#39;999999888&#39;::bpchar &#x3D; CASE WHEN (&#39;2&#39;</span><br><span class="line">::text &#x3D; ANY (&#39;&#123;2,3&#125;&#39;::text[])) THEN nation_org_id ELSE internal_org_id END) AND (int_org_level_cd &#x3D; ANY (&#39;&#123;1,2&#125;&#39;::bpchar[])))))</span><br><span class="line">                                 Rows Removed by Filter: 549182</span><br><span class="line">                           -&gt;  Index Scan using idx_3 on t04_sys_organization org3  (cost&#x3D;0.42..8.44 rows&#x3D;1 width&#x3D;45) (actual time</span><br><span class="line">&#x3D;0.027..0.029 rows&#x3D;1 loops&#x3D;37)</span><br><span class="line">                                 Index Cond: ((a.new_org_id &#x3D; internal_org_id) AND (sys_id &#x3D; &#39;S20&#39;::character(3)))</span><br><span class="line">                                 Filter: (province_cd &#x3D; 71)</span><br><span class="line">               -&gt;  Materialize  (cost&#x3D;68906.37..71450.71 rows&#x3D;292 width&#x3D;586) (actual time&#x3D;12.309..12.389 rows&#x3D;19 loops&#x3D;37)</span><br><span class="line">                     -&gt;  Subquery Scan on data  (cost&#x3D;68906.37..71449.25 rows&#x3D;292 width&#x3D;586) (actual time&#x3D;455.410..457.807 rows&#x3D;40</span><br><span class="line"> loops&#x3D;1)</span><br><span class="line">                           -&gt;  GroupAggregate  (cost&#x3D;68906.37..71446.33 rows&#x3D;292 width&#x3D;586) (actual time&#x3D;455.407..457.739 rows&#x3D;40</span><br><span class="line">loops&#x3D;1)</span><br><span class="line">                                 Group Key: syt.stat_org_id</span><br><span class="line">                                 -&gt;  Nested Loop  (cost&#x3D;68906.37..71416.40 rows&#x3D;292 width&#x3D;100) (actual time&#x3D;455.322..457.390 rows&#x3D;</span><br><span class="line">41 loops&#x3D;1)</span><br><span class="line">                                       -&gt;  Unique  (cost&#x3D;68905.79..68907.25 rows&#x3D;291 width&#x3D;10) (actual time&#x3D;455.259..456.424 rows&#x3D;</span><br><span class="line">44 loops&#x3D;1)</span><br><span class="line">                                             -&gt;  Sort  (cost&#x3D;68905.79..68906.52 rows&#x3D;292 width&#x3D;10) (actual time&#x3D;455.255..455.810 r</span><br><span class="line">ows&#x3D;710 loops&#x3D;1)</span><br><span class="line">                                                   Sort Key: org.internal_org_id</span><br><span class="line">                                                   Sort Method: quicksort  Memory: 58kB</span><br><span class="line">                                                   -&gt;  Gather  (cost&#x3D;1000.00..68893.83 rows&#x3D;292 width&#x3D;10) (actual time&#x3D;0.683..453.</span><br><span class="line">986 rows&#x3D;725 loops&#x3D;1)</span><br><span class="line">                                                         Workers Planned: 2</span><br><span class="line">                                                         Workers Launched: 2</span><br><span class="line">                                                         -&gt;  Parallel Seq Scan on t98_int_org_app_rela_h org  (cost&#x3D;0.00..67864.63</span><br><span class="line"> rows&#x3D;122 width&#x3D;10) (actual time&#x3D;2.719..448.507 rows&#x3D;242 loops&#x3D;3)</span><br><span class="line">                                                               Filter: ((internal_org_id &#x3D; &#39;999999888&#39;::bpchar) OR (parent_int_org</span><br><span class="line">_id &#x3D; &#39;999999888&#39;::bpchar) OR ((&#39;999999888&#39;::bpchar &#x3D; CASE WHEN (&#39;2&#39;::text &#x3D; ANY (&#39;&#123;2,3&#125;&#39;::text[])) THEN nation_org_id ELSE intern</span><br><span class="line">al_org_id END) AND (int_org_level_cd &#x3D; ANY (&#39;&#123;1,2&#125;&#39;::bpchar[])) AND (int_org_stru_type_cd &#x3D; &#39;1&#39;::bpchar) AND (int_org_type_cd &#x3D; AN</span><br><span class="line">Y (&#39;&#123;01,07,10,05,99&#125;&#39;::bpchar[])) AND (start_dt &lt;&#x3D; to_date(&#39;20161001&#39;::text, &#39;yyyymmdd&#39;::text)) AND (end_dt &gt; to_date(&#39;20161001&#39;::</span><br><span class="line">text, &#39;yyyymmdd&#39;::text))))</span><br><span class="line">                                                               Rows Removed by Filter: 548953</span><br><span class="line">                                       -&gt;  Index Scan using idx_1 on t98_syt_acct_stat_d_1 syt  (cost&#x3D;0.58..8.60 rows&#x3D;1 width&#x3D;100)</span><br><span class="line"> (actual time&#x3D;0.016..0.017 rows&#x3D;1 loops&#x3D;44)</span><br><span class="line">                                             Index Cond: ((stat_org_id &#x3D; org.internal_org_id) AND (summ_date &#x3D; to_date(&#39;20161001&#39;:</span><br><span class="line">:text, &#39;yyyymmdd&#39;::text)) AND (stat_period_cd &#x3D; &#39;1&#39;::bpchar) AND (stat_org_attr_cd &#x3D; &#39;9&#39;::bpchar))</span><br><span class="line"> Planning time: 2.997 ms</span><br><span class="line"> Execution time: 565.724 ms</span><br></pre></td></tr></table></figure>
+<p>执行时间缩小到不到1秒，通过执行计划看到SQL执行顺序发生了变化，t98_syt_acct_stat_d_1不是最先被执行的，而是先过滤完internal_org_id,再根据internal_org_id与t98_syt_acct_stat_d_1上的stat_org_id做 Nested Loop<br>还有一种方式可以将子查询提出来改成连接,这种方式SQL语句看起来比较清爽， 效率也不错</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br></pre></td><td class="code"><pre><span class="line">select</span><br><span class="line">      org.Internal_Org_Id    as  Stat_Org_Id     --机构编号</span><br><span class="line">     ,(case when org.Internal_Org_Id &#x3D; &#39;999999888&#39;</span><br><span class="line">            then &#39;合计&#39;</span><br><span class="line">            else org.Org_Name</span><br><span class="line">            end )            as  Stat_Org_Name   --机构代码</span><br><span class="line">     ,(case when org.Internal_Org_Id &#x3D; &#39;999999888&#39;</span><br><span class="line">            then 1</span><br><span class="line">            else 2</span><br><span class="line">            end)             as ORDERID</span><br><span class="line">     ,sum(data.jon_acct_num     )   as   jon_acct_num     </span><br><span class="line">     ,sum(data.jon_cross_num    )   as   jon_cross_num    </span><br><span class="line">     ,sum(data.jon_pay_num      )   as   jon_pay_num      </span><br><span class="line">     ,sum(data.total_jon_num    )   as   total_jon_num    </span><br><span class="line">     ,sum(data.des_acct_num     )   as   des_acct_num     </span><br><span class="line">     ,sum(data.des_cross_num    )   as   des_cross_num    </span><br><span class="line">     ,sum(data.des_pay_num      )   as   des_pay_num      </span><br><span class="line">     ,sum(data.total_des_num    )   as   total_des_num    </span><br><span class="line">     ,sum(data.accjon_acct_num  )   as   accjon_acct_num  </span><br><span class="line">     ,sum(data.accjon_cross_num )   as   accjon_cross_num </span><br><span class="line">     ,sum(data.accjon_pay_num   )   as   accjon_pay_num   </span><br><span class="line">     ,sum(data.total_accjon_num )   as   total_accjon_num </span><br><span class="line">     ,sum(data.accjon_acct_amt  )   as   accjon_acct_amt  </span><br><span class="line">     ,sum(data.accjon_cross_amt )   as   accjon_cross_amt </span><br><span class="line">     ,sum(data.accjon_acct1_amt )   as   accjon_acct1_amt </span><br><span class="line">     ,sum(data.accjon_acct0_amt )   as   accjon_acct0_amt </span><br><span class="line">     ,sum(data.accjon_pay_amt   )   as   accjon_pay_amt   </span><br><span class="line">     ,sum(data.total_accjon_amt )   as   total_accjon_amt </span><br><span class="line">from cimfbview.t98_int_org_app_rela_h org</span><br><span class="line">left join T98_SYT_ACCT_STAT_D_1 data</span><br><span class="line">       on org.Internal_Org_Id&#x3D;data.Stat_Org_Id</span><br><span class="line">      and data.Stat_Period_Cd &#x3D; &#39;1&#39;</span><br><span class="line">      and data.Summ_Date  &#x3D;  to_date(&#39;20161001&#39;,&#39;yyyymmdd&#39;)</span><br><span class="line">      and data.Stat_Org_Attr_Cd &#x3D; &#39;9&#39;</span><br><span class="line">where  (org.Internal_Org_Id &#x3D; &#39;999999888&#39;</span><br><span class="line">      OR ORG.Parent_Int_Org_Id &#x3D; &#39;999999888&#39;</span><br><span class="line">          or &#39;999999888&#39; &#x3D;</span><br><span class="line">          (</span><br><span class="line">        case</span><br><span class="line">          when &#39;1&#39; &#x3D; &#39;1&#39; and &#39;2&#39; in (&#39;2&#39;,&#39;3&#39;)  then nation_org_id</span><br><span class="line">          when &#39;1&#39; &#x3D; &#39;2&#39; and &#39;2&#39; in (&#39;3&#39;,&#39;4&#39;,&#39;5&#39;) then prov_org_id</span><br><span class="line">          when &#39;1&#39; &#x3D; &#39;3&#39; and &#39;2&#39; in (&#39;4&#39;,&#39;5&#39;) then city_org_id</span><br><span class="line">          when &#39;1&#39; &#x3D; &#39;4&#39; and &#39;2&#39; &#x3D; &#39;5&#39; then county_org_id</span><br><span class="line">        else Internal_Org_Id</span><br><span class="line">        end</span><br><span class="line">          )</span><br><span class="line">        and org.Int_Org_level_cd in (&#39;1&#39;,&#39;2&#39;)  </span><br><span class="line">     )</span><br><span class="line">        and org.Int_Org_Stru_Type_Cd&#x3D;&#39;1&#39;</span><br><span class="line">        and org.Int_Org_Type_Cd in (&#39;01&#39;,&#39;07&#39;,&#39;10&#39;,&#39;05&#39;,&#39;99&#39;)</span><br><span class="line">        and org.Start_Dt &lt;&#x3D; to_date(&#39;20161001&#39;,&#39;yyyymmdd&#39;)</span><br><span class="line">        and org.End_Dt &gt; to_date(&#39;20161001&#39;,&#39;yyyymmdd&#39;)</span><br><span class="line">group by 1,2,3</span><br><span class="line">order by    1,2,3;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">GroupAggregate  (cost&#x3D;69003.44..69005.51 rows&#x3D;18 width&#x3D;622) (actual time&#x3D;401.488..401.925 rows&#x3D;37 loops&#x3D;1)</span><br><span class="line">   Group Key: a.internal_org_id, (CASE WHEN (a.internal_org_id &#x3D; &#39;999999888&#39;::bpchar) THEN &#39;合计&#39;::character varying ELSE COALESCE</span><br><span class="line">(org3.org_name, a.org_name) END), (CASE WHEN (a.internal_org_id &#x3D; &#39;999999888&#39;::bpchar) THEN 1 ELSE 2 END)</span><br><span class="line">   -&gt;  Sort  (cost&#x3D;69003.44..69003.48 rows&#x3D;18 width&#x3D;136) (actual time&#x3D;401.431..401.487 rows&#x3D;37 loops&#x3D;1)</span><br><span class="line">         Sort Key: a.internal_org_id, (CASE WHEN (a.internal_org_id &#x3D; &#39;999999888&#39;::bpchar) THEN &#39;合计&#39;::character varying ELSE COA</span><br><span class="line">LESCE(org3.org_name, a.org_name) END), (CASE WHEN (a.internal_org_id &#x3D; &#39;999999888&#39;::bpchar) THEN 1 ELSE 2 END)</span><br><span class="line">         Sort Method: quicksort  Memory: 34kB</span><br><span class="line">         -&gt;  Gather  (cost&#x3D;1001.00..69003.06 rows&#x3D;18 width&#x3D;136) (actual time&#x3D;61.302..401.261 rows&#x3D;37 loops&#x3D;1)</span><br><span class="line">               Workers Planned: 2</span><br><span class="line">               Workers Launched: 2</span><br><span class="line">               -&gt;  Nested Loop Left Join  (cost&#x3D;1.00..68001.21 rows&#x3D;8 width&#x3D;136) (actual time&#x3D;56.932..395.159 rows&#x3D;12 loops&#x3D;3)</span><br><span class="line">                     -&gt;  Nested Loop Left Join  (cost&#x3D;0.42..67932.27 rows&#x3D;8 width&#x3D;76) (actual time&#x3D;56.841..394.613 rows&#x3D;12 loops&#x3D;3</span><br><span class="line">)</span><br><span class="line">                           -&gt;  Parallel Seq Scan on t98_int_org_app_rela_h a  (cost&#x3D;0.00..67864.63 rows&#x3D;8 width&#x3D;51) (actual time&#x3D;5</span><br><span class="line">6.745..394.173 rows&#x3D;12 loops&#x3D;3)</span><br><span class="line">                                 Filter: ((int_org_stru_type_cd &#x3D; &#39;1&#39;::bpchar) AND (start_dt &lt;&#x3D; to_date(&#39;20161001&#39;::text, &#39;yyyymmd</span><br><span class="line">d&#39;::text)) AND (end_dt &gt; to_date(&#39;20161001&#39;::text, &#39;yyyymmdd&#39;::text)) AND (int_org_type_cd &#x3D; ANY (&#39;&#123;01,07,10,05,99&#125;&#39;::bpchar[])) A</span><br><span class="line">ND ((internal_org_id &#x3D; &#39;999999888&#39;::bpchar) OR (parent_int_org_id &#x3D; &#39;999999888&#39;::bpchar) OR ((&#39;999999888&#39;::bpchar &#x3D; CASE WHEN (&#39;2&#39;</span><br><span class="line">::text &#x3D; ANY (&#39;&#123;2,3&#125;&#39;::text[])) THEN nation_org_id ELSE internal_org_id END) AND (int_org_level_cd &#x3D; ANY (&#39;&#123;1,2&#125;&#39;::bpchar[])))))</span><br><span class="line">                                 Rows Removed by Filter: 549182</span><br><span class="line">                           -&gt;  Index Scan using idx_3 on t04_sys_organization org3  (cost&#x3D;0.42..8.44 rows&#x3D;1 width&#x3D;45) (actual time</span><br><span class="line">&#x3D;0.026..0.027 rows&#x3D;1 loops&#x3D;37)</span><br><span class="line">                                 Index Cond: ((a.new_org_id &#x3D; internal_org_id) AND (sys_id &#x3D; &#39;S20&#39;::character(3)))</span><br><span class="line">                                 Filter: (province_cd &#x3D; 71)</span><br><span class="line">                     -&gt;  Index Scan using idx_1 on t98_syt_acct_stat_d_1 data  (cost&#x3D;0.58..8.60 rows&#x3D;1 width&#x3D;100) (actual time&#x3D;0.0</span><br><span class="line">34..0.036 rows&#x3D;1 loops&#x3D;37)</span><br><span class="line">                           Index Cond: ((a.internal_org_id &#x3D; stat_org_id) AND (summ_date &#x3D; to_date(&#39;20161001&#39;::text, &#39;yyyymmdd&#39;::t</span><br><span class="line">ext)) AND (stat_period_cd &#x3D; &#39;1&#39;::bpchar) AND (stat_org_attr_cd &#x3D; &#39;9&#39;::bpchar))</span><br><span class="line"> Planning time: 4.092 ms</span><br><span class="line"> Execution time: 412.283 ms</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>优化就是减少对数据扫描次数，子查询或连接查询时应尽量将结果集在底层减少数据结果</p>
+<p>观察执行计划要看按执行顺序查看，这样才会发现哪一步执行计划出现了问题、返回的数据量最大、COST值消耗最大</p>
+<p>数据库都是相通的这里数据库是PG但MySQL优化思路也一样。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://yoursite.com/2018/07/05/SQL%E4%BC%98%E5%8C%96-%E5%AD%90%E6%9F%A5%E8%AF%A2%E7%BB%93%E6%9E%9C%E9%9B%86%E8%BF%87%E5%A4%9A/" data-id="ckdyc8e4s002grluuf8068nm9" class="article-share-link">Share</a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/PostgreSQL/" rel="tag">PostgreSQL</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/SQL%E4%BC%98%E5%8C%96/" rel="tag">SQL优化</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+  
+    <article id="post-PostgreSQL-PIRT恢复" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2018/06/17/PostgreSQL-PIRT%E6%81%A2%E5%A4%8D/" class="article-date">
+  <time datetime="2018-06-17T04:59:30.000Z" itemprop="datePublished">2018-06-17</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2018/06/17/PostgreSQL-PIRT%E6%81%A2%E5%A4%8D/">PostgreSQL PIRT恢复</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h1 id="PostgreSQL的PIRT恢复"><a href="#PostgreSQL的PIRT恢复" class="headerlink" title="PostgreSQL的PIRT恢复"></a>PostgreSQL的PIRT恢复</h1><blockquote>
+<p>基于备份集的恢复比较简单，直接使用备份进行恢复，但是在实际环境中我们可能会遇到数据误删除需要指定恢复到某一时间点</p>
+</blockquote>
+<h2 id="实验步骤"><a href="#实验步骤" class="headerlink" title="实验步骤"></a>实验步骤</h2><p>总体步骤如下:</p>
+<ul>
+<li>基于数据库做基础备份</li>
+<li>插入新数据</li>
+<li>删除表中部分数据</li>
+<li>基于备份做指定时间点的恢复</li>
+<li>验证数据是否恢复</li>
+</ul>
+<h3 id="基础备份"><a href="#基础备份" class="headerlink" title="基础备份"></a>基础备份</h3><ul>
+<li>使用pg_basebackup<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">pg_basebackup  -X s -P -F t -U postgres -D &#x2F;backup&#x2F;</span><br><span class="line"></span><br><span class="line">[postgres@pg39 backup]$ ls -ltr</span><br><span class="line">total 40104</span><br><span class="line">-rw-rw-r-- 1 postgres postgres 24284160 May  6 01:47 base.tar</span><br><span class="line">-rw------- 1 postgres postgres 16779264 May  6 01:47 pg_wal.tar</span><br></pre></td></tr></table></figure>
+备份完成后会看到生成两个tar文件，其中pg_wal是由于备份时添加了-X s参数的原因</li>
+</ul>
+<h3 id="插入新数据"><a href="#插入新数据" class="headerlink" title="插入新数据"></a>插入新数据</h3><ul>
+<li>向dhytest表中插入新数据并记录时间<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">[postgres@pg39 backup]$ psql</span><br><span class="line">psql (10.3)</span><br><span class="line">Type &quot;help&quot; for help.</span><br><span class="line"></span><br><span class="line">postgres&#x3D;# insert into dhytest values (10);</span><br><span class="line">INSERT 0 1</span><br><span class="line">postgres&#x3D;# insert into dhytest values (20);</span><br><span class="line">INSERT 0 1</span><br><span class="line">postgres&#x3D;# insert into dhytest values (30);</span><br><span class="line">INSERT 0 1</span><br><span class="line">postgres&#x3D;# insert into dhytest values (40);</span><br><span class="line">INSERT 0 1</span><br><span class="line">postgres&#x3D;# insert into dhytest values (50);</span><br><span class="line">INSERT 0 1</span><br><span class="line">postgres&#x3D;# select now();</span><br><span class="line">              now</span><br><span class="line">-------------------------------</span><br><span class="line"> 2018-05-06 01:51:52.664137+08</span><br></pre></td></tr></table></figure>
+
+</li>
+</ul>
+<h3 id="删除数据"><a href="#删除数据" class="headerlink" title="删除数据"></a>删除数据</h3><ul>
+<li>删除数据并记录时间点，用于指定时间点恢复时使用<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">postgres&#x3D;# delete from dhytest where id &#x3D; 40;</span><br><span class="line">DELETE 1</span><br><span class="line">postgres&#x3D;# select now();</span><br><span class="line">              now</span><br><span class="line">-------------------------------</span><br><span class="line"> 2018-05-06 01:52:31.409248+08</span><br><span class="line">(1 row)</span><br><span class="line"></span><br><span class="line">[postgres@pg39 backup]$ psql</span><br><span class="line">psql (10.3)</span><br><span class="line">Type &quot;help&quot; for help.</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;切换几个wal日志</span><br><span class="line">postgres&#x3D;# select pg_switch_wal();</span><br><span class="line"> pg_switch_wal</span><br><span class="line">---------------</span><br><span class="line"> 0&#x2F;18000730</span><br><span class="line">(1 row)</span><br><span class="line"></span><br><span class="line">postgres&#x3D;# select pg_switch_wal();</span><br><span class="line"> pg_switch_wal</span><br><span class="line">---------------</span><br><span class="line"> 0&#x2F;19000078</span><br><span class="line">(1 row)</span><br></pre></td></tr></table></figure>
+
+</li>
+</ul>
+<h3 id="基于备份做指定时间点的恢复"><a href="#基于备份做指定时间点的恢复" class="headerlink" title="基于备份做指定时间点的恢复"></a>基于备份做指定时间点的恢复</h3><ul>
+<li>解压备份文件<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">tar xvf base.tar</span><br><span class="line">mv pg_wal.tar pg_wal&#x2F;</span><br><span class="line">tar xvf pg_wal.tar</span><br></pre></td></tr></table></figure></li>
+<li>创建recovery.conf文件<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">recovery_target_time &#x3D; &#39; 2018-05-06 01:51:52.664137&#39;</span><br><span class="line">restore_command &#x3D; &#39;cp &#x2F;pgdata&#x2F;pg_wal&#x2F;%f %p&#39; &#x2F;&#x2F;这里没有做wal的归档，所以直接指向了wal 的目录，如果设置了wal归档则执行归档目录即可</span><br></pre></td></tr></table></figure>
+
+</li>
+</ul>
+<h3 id="验证数据是否恢复"><a href="#验证数据是否恢复" class="headerlink" title="验证数据是否恢复"></a>验证数据是否恢复</h3><ul>
+<li>启动数据库后我们查看数据全部恢复完成<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">[postgres@pg39 backup]$ pg_ctl start -D &#x2F;backup&#x2F;</span><br><span class="line">waiting for server to start....2018-05-06 02:01:35.282 CST [4404] LOG:  listening on IPv4 address &quot;0.0.0.0&quot;, port 5432</span><br><span class="line">2018-05-06 02:01:35.282 CST [4404] LOG:  listening on IPv6 address &quot;::&quot;, port 5432</span><br><span class="line">2018-05-06 02:01:35.285 CST [4404] LOG:  listening on Unix socket &quot;&#x2F;tmp&#x2F;.s.PGSQL.5432&quot;</span><br><span class="line">2018-05-06 02:01:35.292 CST [4404] LOG:  redirecting log output to logging collector process</span><br><span class="line">2018-05-06 02:01:35.292 CST [4404] HINT:  Future log output will appear in directory &quot;log&quot;.</span><br><span class="line"> done</span><br><span class="line">server started</span><br><span class="line">[postgres@pg39 backup]$ psql</span><br><span class="line">psql (10.3)</span><br><span class="line">Type &quot;help&quot; for help.</span><br><span class="line"></span><br><span class="line">postgres&#x3D;# select * from dhytest;</span><br><span class="line"> id</span><br><span class="line">----</span><br><span class="line"> 10</span><br><span class="line"> 20</span><br><span class="line"> 30</span><br><span class="line"> 40</span><br><span class="line"> 50</span><br><span class="line">(5 rows)</span><br></pre></td></tr></table></figure>
+<h2 id="恢复大致原理"><a href="#恢复大致原理" class="headerlink" title="恢复大致原理"></a>恢复大致原理</h2>基于时间点恢复主要过程就是利用全备+WAL日志，将数据库推至一个指定的状态。在恢复时我们需要注意WAL日志是否完整，如果归档目录下WAL日志不能恢复到指定时间点需要拷贝最新的WAL日志到归档目录下，才能继续恢复。</li>
+</ul>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://yoursite.com/2018/06/17/PostgreSQL-PIRT%E6%81%A2%E5%A4%8D/" data-id="ckdyc8e3s000lrluu70hj15jk" class="article-share-link">Share</a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/PostgreSQL/" rel="tag">PostgreSQL</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E5%A4%87%E4%BB%BD%E6%81%A2%E5%A4%8D/" rel="tag">备份恢复</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+  
+    <article id="post-解决linux下客户端软件不能输入中文问题" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2018/06/15/%E8%A7%A3%E5%86%B3linux%E4%B8%8B%E5%AE%A2%E6%88%B7%E7%AB%AF%E8%BD%AF%E4%BB%B6%E4%B8%8D%E8%83%BD%E8%BE%93%E5%85%A5%E4%B8%AD%E6%96%87%E9%97%AE%E9%A2%98/" class="article-date">
+  <time datetime="2018-06-15T03:44:24.000Z" itemprop="datePublished">2018-06-15</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2018/06/15/%E8%A7%A3%E5%86%B3linux%E4%B8%8B%E5%AE%A2%E6%88%B7%E7%AB%AF%E8%BD%AF%E4%BB%B6%E4%B8%8D%E8%83%BD%E8%BE%93%E5%85%A5%E4%B8%AD%E6%96%87%E9%97%AE%E9%A2%98/">解决linux下客户端软件不能输入中文问题</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h1 id="解决linux下客户端软件不能输入中文问题"><a href="#解决linux下客户端软件不能输入中文问题" class="headerlink" title="解决linux下客户端软件不能输入中文问题"></a>解决linux下客户端软件不能输入中文问题</h1><blockquote>
+<p>最近安装一套Greenplum集群，安装后使用psql命令创建表插入中文时一直不能输入，最终定位到问题原因是因为libedit.so.0版本原因，下面介绍下排查方式及解决方法</p>
+</blockquote>
+<h2 id="定位问题原因"><a href="#定位问题原因" class="headerlink" title="定位问题原因"></a>定位问题原因</h2><ul>
+<li>首先客户端不能输入中文则验证在linux系统层是否可以输入中文， 验证可以</li>
+<li>怀疑是客户端自身原因则使用不同版本客户端测试，发现高版本的客户端则可以输入中文</li>
+<li>说明原因是在客户端上，查看两个客户端的client encoding也全都是UTF8</li>
+<li>通过ldd 查看两个命令引用的动态库<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;高版本psql客户端</span><br><span class="line">[gpadmin@mdw ~]$ ldd &#x2F;usr&#x2F;bin&#x2F;psql</span><br><span class="line">    linux-vdso.so.1 &#x3D;&gt;  (0x00007fff64df2000)</span><br><span class="line">    libpq.so.5 &#x3D;&gt; &#x2F;usr&#x2F;local&#x2F;greenplum&#x2F;greenplum-db&#x2F;.&#x2F;lib&#x2F;libpq.so.5 (0x00007f0ea263f000)</span><br><span class="line">    libssl.so.10 &#x3D;&gt; &#x2F;usr&#x2F;lib64&#x2F;libssl.so.10 (0x000000393f200000)</span><br><span class="line">    libreadline.so.6 &#x3D;&gt; &#x2F;lib64&#x2F;libreadline.so.6 (0x0000003937600000)</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;低版本客户端</span><br><span class="line">[gpadmin@mdw ~]$ ldd &#x2F;usr&#x2F;local&#x2F;greenplum&#x2F;greenplum-db&#x2F;bin&#x2F;psql</span><br><span class="line">    linux-vdso.so.1 &#x3D;&gt;  (0x00007fff89b49000)</span><br><span class="line">    libpq.so.5 &#x3D;&gt; &#x2F;usr&#x2F;local&#x2F;greenplum&#x2F;greenplum-db&#x2F;.&#x2F;lib&#x2F;libpq.so.5 (0x00007fcbaca2b000)</span><br><span class="line">    libssl.so.0.9.8 &#x3D;&gt; &#x2F;usr&#x2F;local&#x2F;greenplum&#x2F;greenplum-db&#x2F;.&#x2F;lib&#x2F;libssl.so.0.9.8 (0x00007fcbac7db000)</span><br><span class="line">    libedit.so.0 &#x3D;&gt; &#x2F;usr&#x2F;local&#x2F;greenplum&#x2F;greenplum-db&#x2F;.&#x2F;lib&#x2F;libedit.so.0 (0x00007fcbac5a5000)</span><br></pre></td></tr></table></figure>
+两个客户端处理字符输入引用的动态库是不一样的，分别使用了/lib64/libreadline.so.6, libedit.so.0 我们在查看libedit.so.0的版本<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">cd &#x2F;usr&#x2F;local&#x2F;greenplum&#x2F;greenplum-db&#x2F;lib</span><br><span class="line">ls -ltr libedit.so.0</span><br><span class="line">发现libedit.so.0 是libedit.so.0.0.29的一个软连接， 怀疑是版本问题</span><br></pre></td></tr></table></figure>
+
+</li>
+</ul>
+<h2 id="升级libedit版本"><a href="#升级libedit版本" class="headerlink" title="升级libedit版本"></a>升级libedit版本</h2><ul>
+<li><p><a target="_blank" rel="noopener" href="http://distfiles.macports.org/libedit/">http://distfiles.macports.org/libedit/</a> 下载    libedit-20170329-3.1.tar.gz</p>
+</li>
+<li><p>上传到服务器上编译安装</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">tar -zxvf libedit-20170329-3.1.tar.gz</span><br><span class="line">.&#x2F;configure</span><br><span class="line">make &amp;&amp; make install</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>将原有的软连接unlink,并创建新连接</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">unlink &#x2F;usr&#x2F;local&#x2F;greenplum&#x2F;greenplum-db&#x2F;.&#x2F;lib&#x2F;libedit.so.0</span><br><span class="line">ln -s &#x2F;usr&#x2F;local&#x2F;lib&#x2F;libedit.so.0.0.56 &#x2F;usr&#x2F;local&#x2F;greenplum&#x2F;greenplum-db&#x2F;.&#x2F;lib&#x2F;libedit.so.0</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>再次登录psql客户端发现客户输入中文了</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">postgres&#x3D;# create table dhytest (id int, name char(20));</span><br><span class="line">NOTICE:  Table doesn&#39;t have &#39;DISTRIBUTED BY&#39; clause -- Using column named &#39;id&#39; as the Greenplum Database data distribution key for this table.</span><br><span class="line">HINT:  The &#39;DISTRIBUTED BY&#39; clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.</span><br><span class="line">CREATE TABLE</span><br><span class="line">postgres&#x3D;# insert into dhytest values(10, &#39;董红禹&#39;);</span><br><span class="line">INSERT 0 1</span><br><span class="line">postgres&#x3D;# select * from dhytest;</span><br><span class="line"> id |          name</span><br><span class="line">----+-------------------------</span><br><span class="line"> 10 | 董红禹</span><br><span class="line">(1 row)</span><br></pre></td></tr></table></figure>
+
+</li>
+</ul>
+<h2 id="问题延伸"><a href="#问题延伸" class="headerlink" title="问题延伸"></a>问题延伸</h2><p>在安装Greenplum时，会加载相应环境变量Greenplum手册中提供了相应的脚本，一般会添加到gpadmin的.bash_profile中</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">source &#x2F;usr&#x2F;local&#x2F;greenplum&#x2F;greenplum-db&#x2F;greenplum_path.sh</span><br></pre></td></tr></table></figure>
+<p>加载此环境变量后使用的一些动态库会指向Greenplum安装目录下的lib目录中，这样也会导致在root用户下和gpadmin用户下执行posql引用不同动态库会出现不同结果，这点需要大家注意。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://yoursite.com/2018/06/15/%E8%A7%A3%E5%86%B3linux%E4%B8%8B%E5%AE%A2%E6%88%B7%E7%AB%AF%E8%BD%AF%E4%BB%B6%E4%B8%8D%E8%83%BD%E8%BE%93%E5%85%A5%E4%B8%AD%E6%96%87%E9%97%AE%E9%A2%98/" data-id="ckdyc8e4o0028rluudqqw3ib2" class="article-share-link">Share</a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Greenplum/" rel="tag">Greenplum</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Linux/" rel="tag">Linux</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+  
+    <article id="post-PostgreSQL中添加插件" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2018/04/29/PostgreSQL%E4%B8%AD%E6%B7%BB%E5%8A%A0%E6%8F%92%E4%BB%B6/" class="article-date">
+  <time datetime="2018-04-29T07:39:06.000Z" itemprop="datePublished">2018-04-29</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2018/04/29/PostgreSQL%E4%B8%AD%E6%B7%BB%E5%8A%A0%E6%8F%92%E4%BB%B6/">PostgreSQL中添加插件</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h1 id="PostgreSQL中添加插件"><a href="#PostgreSQL中添加插件" class="headerlink" title="PostgreSQL中添加插件"></a>PostgreSQL中添加插件</h1><h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>最近一个客户将SQLServer迁移到PostgreSQL中，性能得到了整体提升并省去每年接近百万的License费用，迁移中用户提出一个需求，需要将以前应用一些加解密的函数封装成PG的函数但是由于之前这些函数引入了C++第三方的动态库我们无法使用数据库中这种函数方式，所以我们通过PG中特有的插件功能来解决。</p>
+<h2 id="添加插件流程"><a href="#添加插件流程" class="headerlink" title="添加插件流程"></a>添加插件流程</h2><h3 id="文件结构"><a href="#文件结构" class="headerlink" title="文件结构"></a>文件结构</h3><ul>
+<li>封装好的C++类库<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">CryptoPG.h</span><br><span class="line">CryptoPG.cpp</span><br></pre></td></tr></table></figure></li>
+<li>对外接口文件<ul>
+<li>由于编译是发现直接调用C++类库与PG源码中宏定义会有重名问题，所以将C++类库在进行一次包装供C进行调用<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">cs_cryptopp.h</span><br><span class="line">cs_cryptopp.cpp</span><br></pre></td></tr></table></figure></li>
+</ul>
+</li>
+<li>PG中插件实现的源文件<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">cs_cryptopp_wrapper.c</span><br></pre></td></tr></table></figure>
+<h3 id="源码实现"><a href="#源码实现" class="headerlink" title="源码实现"></a>源码实现</h3><h4 id="对外结构文件"><a href="#对外结构文件" class="headerlink" title="对外结构文件"></a>对外结构文件</h4></li>
+<li>在cs_cryptopp.cpp文件中我们进行一次封装，调用C++类库中的函数<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//cs_cryptopp.cpp</span></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">generateecdsakey_wrapper</span><span class="params">(<span class="keyword">char</span> ** strPrivate, <span class="keyword">char</span> ** strPublic)</span></span></span><br><span class="line"><span class="function"> </span>&#123;</span><br><span class="line">     <span class="comment">//调用C++函数</span></span><br><span class="line">     CryptoPG cry;</span><br><span class="line">     cry.GenerateECDSAKey(strPrivate, strPublic);</span><br><span class="line">     <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line"> &#125;</span><br><span class="line"><span class="comment">//同时在cs_cryptopp.h中声明函数,extern 声明代表以C形式进行编译</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> __cplusplus</span></span><br><span class="line"><span class="keyword">extern</span> <span class="string">&quot;C&quot;</span> <span class="function"><span class="keyword">int</span>   <span class="title">generateecdsakey_wrapper</span><span class="params">(<span class="keyword">char</span> ** strPrivate, <span class="keyword">char</span> ** strPublic)</span></span>;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br></pre></td></tr></table></figure>
+
+</li>
+</ul>
+<h4 id="PG中插件实现文件"><a href="#PG中插件实现文件" class="headerlink" title="PG中插件实现文件"></a>PG中插件实现文件</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;cs_cryptopp_wrapper.c</span><br><span class="line">extern int   generateecdsakey_wrapper(char ** strPrivate, char ** strPublic); &#x2F;&#x2F;引入外部声明函数</span><br><span class="line"></span><br><span class="line">PG_FUNCTION_INFO_V1(generateecdsakey); &#x2F;&#x2F;注册函数，此函数是PG中我们需要使用的函数名</span><br><span class="line"></span><br><span class="line">PG_MODULE_MAGIC; &#x2F;&#x2F;必须要添加证明是PG的模块</span><br><span class="line"></span><br><span class="line">&#x2F;*</span><br><span class="line"> * signmessage</span><br><span class="line"> *</span><br><span class="line"> * 生成电子签名信息</span><br><span class="line"> *&#x2F;</span><br><span class="line">Datum</span><br><span class="line">signmessage(PG_FUNCTION_ARGS)&#123;</span><br><span class="line"></span><br><span class="line">    FuncCallContext *funcctx;</span><br><span class="line">    TupleDesc tupdesc;</span><br><span class="line">    CallCtx *myCtx;</span><br><span class="line"></span><br><span class="line">    if (SRF_IS_FIRSTCALL()) &#123;</span><br><span class="line">        MemoryContext oldcontext;</span><br><span class="line">        funcctx &#x3D; SRF_FIRSTCALL_INIT();</span><br><span class="line">        oldcontext &#x3D; MemoryContextSwitchTo(funcctx-&gt;multi_call_memory_ctx);</span><br><span class="line"></span><br><span class="line">        myCtx &#x3D; (CallCtx *) palloc(sizeof(CallCtx));</span><br><span class="line">        myCtx-&gt;CallTime &#x3D; 0;</span><br><span class="line">        tupdesc &#x3D; CreateTemplateTupleDesc(2, false);</span><br><span class="line">        TupleDescInitEntry(tupdesc, 1, &quot;Message&quot;, TEXTOID, -1, 0);</span><br><span class="line">        TupleDescInitEntry(tupdesc, 2, &quot;Signature&quot;, TEXTOID, -1, 0);</span><br><span class="line">        funcctx-&gt;user_fctx &#x3D; myCtx;</span><br><span class="line">        funcctx-&gt;tuple_desc &#x3D; BlessTupleDesc(tupdesc);</span><br><span class="line">        MemoryContextSwitchTo(oldcontext);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    funcctx &#x3D; SRF_PERCALL_SETUP();</span><br><span class="line">    myCtx &#x3D; funcctx-&gt;user_fctx;</span><br><span class="line">    tupdesc &#x3D; funcctx-&gt;tuple_desc ;</span><br><span class="line"></span><br><span class="line">    if (myCtx-&gt;CallTime &#x3D;&#x3D; 0) &#123;</span><br><span class="line">        char*   strPGMessage   &#x3D; PG_GETARG_CSTRING(0); &#x2F;&#x2F;获取函数传入的值</span><br><span class="line">        char*   strSignature &#x3D; NULL ;</span><br><span class="line">        signmessage_wrapper(strPGMessage, &amp;strSignature); &#x2F;&#x2F;调用对应封装好的函数</span><br><span class="line">        HeapTuple       tuple &#x3D; NULL;</span><br><span class="line">        Datum           values[2];</span><br><span class="line">        bool            isnull[2] &#x3D; &#123; 0,0 &#125;;</span><br><span class="line"></span><br><span class="line">        &#x2F;&#x2F;放入返回值</span><br><span class="line">        values[0]     &#x3D; CStringGetTextDatum(strPGMessage);</span><br><span class="line">        values[1]     &#x3D; CStringGetTextDatum(strSignature);</span><br><span class="line">        free(strSignature);</span><br><span class="line">        myCtx-&gt;CallTime++;</span><br><span class="line">        tuple &#x3D; heap_form_tuple(tupdesc, values, isnull);</span><br><span class="line">        SRF_RETURN_NEXT(funcctx, HeapTupleGetDatum(tuple)); &#x2F;&#x2F;返回</span><br><span class="line">        &#x2F;&#x2F;PostgreSQL中针对返回不同类型有专门宏定义 具体请参考源码src&#x2F;include&#x2F;fmgr.h文件</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">        SRF_RETURN_DONE(funcctx);</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="SQL文件编写"><a href="#SQL文件编写" class="headerlink" title="SQL文件编写"></a>SQL文件编写</h3><p>编写完对应的代码之后我们还需要添加一个SQL文件，这样在PG中 CREATE EXTENSION会执行对应的SQL语句创建</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">//创建一个函数对应cs_cryptopp_wrapper.c中函数名</span><br><span class="line"><span class="keyword">CREATE</span> <span class="keyword">FUNCTION</span> signmessage(cstring) //接受类型定义为cstring</span><br><span class="line"><span class="keyword">RETURNS</span> <span class="keyword">TABLE</span> (Message <span class="built_in">text</span>, signature <span class="built_in">text</span>) //返回值我们定义为一个表因为会返回多列</span><br><span class="line"><span class="keyword">AS</span> <span class="string">&#x27;MODULE_PATHNAME&#x27;</span></span><br><span class="line"><span class="keyword">LANGUAGE</span> C <span class="keyword">STRICT</span>;</span><br></pre></td></tr></table></figure>
+
+<h2 id="编译安装与使用"><a href="#编译安装与使用" class="headerlink" title="编译安装与使用"></a>编译安装与使用</h2><h3 id="编译安装"><a href="#编译安装" class="headerlink" title="编译安装"></a>编译安装</h3><p>一般PG的插件我们都会放在源码目录下的contrib/项目名称/  目录中,进入目录执行:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">make //编译</span><br><span class="line">su - postgres //切换到postgres用户</span><br><span class="line">pg_ctl stop //关闭数据库</span><br><span class="line"><span class="built_in">exit</span> //退回到root用户</span><br><span class="line">make install //安装</span><br><span class="line">su - postgres //切换到postgres用户</span><br><span class="line">pg_ctl start //启动数据库</span><br></pre></td></tr></table></figure>
+<h3 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h3><p>登录pg数据库中执行:</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">postgres=<span class="comment"># drop EXTENSION cs_cryptopp;  //如果之前已创建过EXTENSION</span></span><br><span class="line">postgres=<span class="comment"># CREATE EXTENSION cs_cryptopp;</span></span><br><span class="line">postgres=<span class="comment"># select * from signmessage(&#x27;2018-01-01 测试&#x27;);</span></span><br><span class="line">     message     |             signature</span><br><span class="line"><span class="comment">-----------------+------------------------------------</span></span><br><span class="line"> 2018-01-01 测试 | )\x06Ū                            +</span><br><span class="line">                 | \x0E\x05\x0C\x0E                  +</span><br><span class="line">                 | SBHLc?)!\x0EÒ:A\x03h\x1C\72n\x13=&#123;</span><br><span class="line">(1 row)</span><br></pre></td></tr></table></figure>
+
+
+<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
+<li>PostgreSQL C编程相关内容请参考:<ul>
+<li><a target="_blank" rel="noopener" href="https://www.postgresql.org/docs/current/static/xfunc-c.html">https://www.postgresql.org/docs/current/static/xfunc-c.html</a></li>
+</ul>
+</li>
+</ul>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://yoursite.com/2018/04/29/PostgreSQL%E4%B8%AD%E6%B7%BB%E5%8A%A0%E6%8F%92%E4%BB%B6/" data-id="ckdyc8e3x000qrluu3uqggkd6" class="article-share-link">Share</a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/PosgreSQL-%E6%BA%90%E7%A0%81/" rel="tag">PosgreSQL 源码</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/PostgreSQL/" rel="tag">PostgreSQL</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+  
+    <article id="post-MySQL统计信息相关表介绍" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2018/02/11/MySQL%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF%E7%9B%B8%E5%85%B3%E8%A1%A8%E4%BB%8B%E7%BB%8D/" class="article-date">
+  <time datetime="2018-02-11T07:28:34.000Z" itemprop="datePublished">2018-02-11</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2018/02/11/MySQL%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF%E7%9B%B8%E5%85%B3%E8%A1%A8%E4%BB%8B%E7%BB%8D/">MySQL统计信息相关表介绍</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h2 id="MySQL统计信息相关表介绍"><a href="#MySQL统计信息相关表介绍" class="headerlink" title="MySQL统计信息相关表介绍"></a>MySQL统计信息相关表介绍</h2><p>MySQL中提供了两个表记录统计信息的相关内容,分别是<br>innodb_table_stats与innodb_index_stats。</p>
+<h3 id="innodb-table-stats"><a href="#innodb-table-stats" class="headerlink" title="innodb_table_stats"></a>innodb_table_stats</h3><p>这个表里面的内容还是比较好理解</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">[root@shadow:/home/mysql/qdata_for_mysql 5.7.18-log_Instance1 root@localhost:(none) 14:03:33]&gt;select * from mysql.innodb_table_stats where table_name = &#x27;dhytest&#x27;;</span><br><span class="line">+<span class="comment">---------------+------------+---------------------+--------+----------------------+--------------------------+</span></span><br><span class="line">| database_name | table_name | last_update         | n_rows | clustered_index_size | sum_of_other_index_sizes |</span><br><span class="line">+<span class="comment">---------------+------------+---------------------+--------+----------------------+--------------------------+</span></span><br><span class="line">| test          | dhytest    | 2017-07-13 14:03:32 |     16 |                    1 |                        1 |</span><br><span class="line">+<span class="comment">---------------+------------+---------------------+--------+----------------------+--------------------------+</span></span><br><span class="line">1 row in <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br></pre></td></tr></table></figure>
+<p>重要的列:</p>
+<ul>
+<li>last_update 就是最后一次收集统计信息的时间</li>
+<li>clustered_index_size 聚集索引的page数量</li>
+<li>sum_of_other_index_sizes 非聚集索引的page数量</li>
+</ul>
+<p>通过这些信息我们可以算出聚集索引的大小:</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">[root@shadow:/home/mysql/qdata_for_mysql 5.7.18-log_Instance1 root@localhost:mysql 15:53:31]&gt;select (clustered_index_size*@@innodb_page_size)/1024/1024 as size from mysql.innodb_table_stats where table_name = &#x27;sbtest1&#x27;;</span><br><span class="line">+<span class="comment">--------------+</span></span><br><span class="line">| size         |</span><br><span class="line">+<span class="comment">--------------+</span></span><br><span class="line">| 107.62500000 |</span><br><span class="line">+<span class="comment">--------------+</span></span><br><span class="line">1 row in <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br></pre></td></tr></table></figure>
+
+
+<h3 id="innodb-index-stats"><a href="#innodb-index-stats" class="headerlink" title="innodb_index_stats"></a>innodb_index_stats</h3><p>这个表里面输出的内容相对会比较复杂一些<br>表结构和测试数据</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> t1 (</span><br><span class="line">  a <span class="built_in">INT</span>, b <span class="built_in">INT</span>, c <span class="built_in">INT</span>, d <span class="built_in">INT</span>, e <span class="built_in">INT</span>, f <span class="built_in">INT</span>,</span><br><span class="line">  PRIMARY <span class="keyword">KEY</span> (a, b), <span class="keyword">KEY</span> i1 (c, d), <span class="keyword">UNIQUE</span> <span class="keyword">KEY</span> i2uniq (e, f)</span><br><span class="line">) <span class="keyword">ENGINE</span>=<span class="keyword">INNODB</span>;</span><br><span class="line"></span><br><span class="line">[root@shadow:/home/mysql/qdata_for_mysql 5.7.18-log_Instance1 root@localhost:test 21:17:07]&gt;select * from t1;</span><br><span class="line">+<span class="comment">---+---+------+------+------+------+</span></span><br><span class="line">| a | b | c    | d    | e    | f    |</span><br><span class="line">+<span class="comment">---+---+------+------+------+------+</span></span><br><span class="line">| 1 | 1 |   10 |   11 |  100 |  101 |</span><br><span class="line">| 1 | 2 |   10 |   11 |  200 |  102 |</span><br><span class="line">| 1 | 3 |   10 |   11 |  100 |  103 |</span><br><span class="line">| 1 | 4 |   10 |   12 |  200 |  104 |</span><br><span class="line">| 1 | 5 |   10 |   12 |  100 |  105 |</span><br><span class="line">+<span class="comment">---+---+------+------+------+------+</span></span><br><span class="line">5 rows in <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br></pre></td></tr></table></figure>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">[root@shadow:/home/mysql/qdata_for_mysql 5.7.18-log_Instance1 root@localhost:test 21:16:41]&gt;select index_name,stat_name,stat_value,stat_description from mysql.innodb_index_stats where table_name = &#x27;t1&#x27;;</span><br><span class="line">+<span class="comment">------------+--------------+------------+-----------------------------------+</span></span><br><span class="line">| index_name | stat_name    | stat_value | stat_description                  |</span><br><span class="line">+<span class="comment">------------+--------------+------------+-----------------------------------+</span></span><br><span class="line">| PRIMARY    | n_diff_pfx01 |          1 | a                                 |</span><br><span class="line">| PRIMARY    | n_diff_pfx02 |          5 | a,b                               |</span><br><span class="line">| PRIMARY    | n_leaf_pages |          1 | Number of leaf pages in the index |</span><br><span class="line">| PRIMARY    | size         |          1 | Number of pages in the index      |</span><br><span class="line">| i1         | n_diff_pfx01 |          1 | c                                 |</span><br><span class="line">| i1         | n_diff_pfx02 |          2 | c,d                               |</span><br><span class="line">| i1         | n_diff_pfx03 |          2 | c,d,a                             |</span><br><span class="line">| i1         | n_diff_pfx04 |          5 | c,d,a,b                           |</span><br><span class="line">| i1         | n_leaf_pages |          1 | Number of leaf pages in the index |</span><br><span class="line">| i1         | size         |          1 | Number of pages in the index      |</span><br><span class="line">| i2uniq     | n_diff_pfx01 |          2 | e                                 |</span><br><span class="line">| i2uniq     | n_diff_pfx02 |          5 | e,f                               |</span><br><span class="line">| i2uniq     | n_leaf_pages |          1 | Number of leaf pages in the index |</span><br><span class="line">| i2uniq     | size         |          1 | Number of pages in the index      |</span><br><span class="line">+<span class="comment">------------+--------------+------------+-----------------------------------+</span></span><br><span class="line">14 rows in <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br></pre></td></tr></table></figure>
+<p>我们主要关注的的列:</p>
+<ul>
+<li><p>stat_value: 显示统计值的大小</p>
+</li>
+<li><p>stat_description:类型的描述</p>
+</li>
+<li><p>stat_name:此列显示统计的类型 , 会出现下面这些:</p>
+<ul>
+<li><p>size:此时stat_value显示索引的page数量</p>
+</li>
+<li><p>n_leaf_pages:此时stat_value显示叶子节点的数量</p>
+</li>
+<li><p>n_diff_pfxNN:显示索引字段上唯一值的忽略，这里需要特殊说明:</p>
+<ul>
+<li><p>主键索引与唯一索引 例如上面结果中index_name = PRIMARY时:</p>
+<ul>
+<li>index_name = PRIMARY 且 stat_name = n_diff_pfx01 则stat_value代表主键索引中第一列distinct之后的数量，从上面的例子我们看到stat_value是1，因为a这一列的值都是(1)</li>
+<li>index_name = PRIMARY 且 stat_name = n_diff_pfx02 则stat_value代表主键索引中第一列和第二列distinct之后的数量，从上面的例子我们看到stat_value是5，因为a,b两列存在的值是(1,1)(1,2)(1,3)(1,4)(1,5)</li>
+<li>stat_description中我们可以看到是那几个列的信息</li>
+<li>n_diff_pfxNN 以此类推</li>
+</ul>
+</li>
+<li><p>非唯一索引不同的地方是在原有的列之后会添加上主键索引，这样说可能比较难理解，针对上面查询出来的记过下面详细说明下:</p>
+<ul>
+<li><p>根据表结构定义我们知道i1是一个非唯一索引,是由(c,d)两个列组成的。我们根据上面的结果可以看到除了n_diff_pfx01,n_diff_pfx02又多出来了n_diff_pfx03,n_diff_pfx04 ,通过stat_description我们可以看到n_diff_pfx03,n_diff_pfx04是在原有的(c,d)两列上又多出了 (c,d,a) (c,d,a,b) 这里就是将主键索引添加到了这里。</p>
+</li>
+<li><p>例如 n_diff_pfx03 的stat_value是2 代表的就是在原有的非唯一索引上添加了主键索引的第一列(a), 这个时候distinct之后的值是2 所存在的值就是: (10,11,1) (10,12,1)</p>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p>通过这个表我们可以查看索引选择性如何，并且可以看到组合索引中每一列选择性如何，还可以计算索引的大小:</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span></span><br><span class="line"></span><br><span class="line">       stat_value pages,</span><br><span class="line">       index_name,</span><br><span class="line">       (stat_value * @@innodb_page_size)/<span class="number">1024</span>/<span class="number">1024</span> <span class="keyword">size</span></span><br><span class="line"><span class="keyword">FROM</span></span><br><span class="line">       mysql.innodb_index_stats</span><br><span class="line"><span class="keyword">WHERE</span></span><br><span class="line">           table_name = <span class="string">&#x27;sbtest1&#x27;</span></span><br><span class="line">       <span class="keyword">AND</span> database_name = <span class="string">&#x27;sbtest&#x27;</span></span><br><span class="line">       <span class="keyword">AND</span> stat_description = <span class="string">&#x27;Number of pages in the index&#x27;</span></span><br><span class="line">       <span class="keyword">AND</span> stat_name = <span class="string">&#x27;size&#x27;</span></span><br><span class="line"><span class="keyword">GROUP</span> <span class="keyword">BY</span></span><br><span class="line">       index_name;</span><br></pre></td></tr></table></figure>
+<p>如果是分区表则使用下面的语句:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">SELECT</span><br><span class="line">       stat_value pages,</span><br><span class="line">       index_name,</span><br><span class="line">       (sum(stat_value) * @@innodb_page_size)&#x2F;1024&#x2F;1024  size</span><br><span class="line">FROM</span><br><span class="line">       mysql.innodb_index_stats</span><br><span class="line">WHERE</span><br><span class="line">           table_name like &#39;t#P%&#39;</span><br><span class="line">       AND database_name &#x3D; &#39;test&#39;</span><br><span class="line">       AND stat_description &#x3D; &#39;Number of pages in the index&#39;</span><br><span class="line">       AND stat_name &#x3D; &#39;size&#39;</span><br><span class="line">GROUP BY</span><br><span class="line">       index_name;</span><br></pre></td></tr></table></figure>
+
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://yoursite.com/2018/02/11/MySQL%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF%E7%9B%B8%E5%85%B3%E8%A1%A8%E4%BB%8B%E7%BB%8D/" data-id="ckdyc8e3r000jrluu0v48bx65" class="article-share-link">Share</a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/MySQL/" rel="tag">MySQL</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E4%BC%98%E5%8C%96/" rel="tag">优化</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF/" rel="tag">统计信息</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+  
+
+
+  <nav id="page-nav">
+    
+    <a class="extend prev" rel="prev" href="/">&amp;laquo; Prev</a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><a class="extend next" rel="next" href="/page/3/">Next &amp;raquo;</a>
+  </nav>
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/Greenplum/" rel="tag">Greenplum</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Innodb/" rel="tag">Innodb</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Innodb-Lock/" rel="tag">Innodb Lock</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Linux/" rel="tag">Linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/MGR/" rel="tag">MGR</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/MVCC/" rel="tag">MVCC</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/MySQL/" rel="tag">MySQL</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/MySQL-Group-Replicaton/" rel="tag">MySQL Group Replicaton</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/PosgreSQL-%E6%BA%90%E7%A0%81/" rel="tag">PosgreSQL 源码</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/PostgreSQL/" rel="tag">PostgreSQL</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/SQL/" rel="tag">SQL</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/SQL%E4%BC%98%E5%8C%96/" rel="tag">SQL优化</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/WAL%E6%97%A5%E5%BF%97/" rel="tag">WAL日志</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/mysql/" rel="tag">mysql</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E4%B8%BB%E4%BB%8E/" rel="tag">主从</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E4%BC%98%E5%8C%96/" rel="tag">优化</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%A4%87%E4%BB%BD%E6%81%A2%E5%A4%8D/" rel="tag">备份恢复</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%A4%8D%E5%88%B6/" rel="tag">复制</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%9F%A5%E8%AF%A2%E4%BC%98%E5%8C%96/" rel="tag">查询优化</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%AD%BB%E9%94%81/" rel="tag">死锁</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF/" rel="tag">统计信息</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/Greenplum/" style="font-size: 10px;">Greenplum</a> <a href="/tags/Innodb/" style="font-size: 10px;">Innodb</a> <a href="/tags/Innodb-Lock/" style="font-size: 10px;">Innodb Lock</a> <a href="/tags/Linux/" style="font-size: 10px;">Linux</a> <a href="/tags/MGR/" style="font-size: 12px;">MGR</a> <a href="/tags/MVCC/" style="font-size: 10px;">MVCC</a> <a href="/tags/MySQL/" style="font-size: 20px;">MySQL</a> <a href="/tags/MySQL-Group-Replicaton/" style="font-size: 12px;">MySQL Group Replicaton</a> <a href="/tags/PosgreSQL-%E6%BA%90%E7%A0%81/" style="font-size: 10px;">PosgreSQL 源码</a> <a href="/tags/PostgreSQL/" style="font-size: 18px;">PostgreSQL</a> <a href="/tags/SQL/" style="font-size: 10px;">SQL</a> <a href="/tags/SQL%E4%BC%98%E5%8C%96/" style="font-size: 12px;">SQL优化</a> <a href="/tags/WAL%E6%97%A5%E5%BF%97/" style="font-size: 10px;">WAL日志</a> <a href="/tags/mysql/" style="font-size: 10px;">mysql</a> <a href="/tags/%E4%B8%BB%E4%BB%8E/" style="font-size: 10px;">主从</a> <a href="/tags/%E4%BC%98%E5%8C%96/" style="font-size: 16px;">优化</a> <a href="/tags/%E5%A4%87%E4%BB%BD%E6%81%A2%E5%A4%8D/" style="font-size: 10px;">备份恢复</a> <a href="/tags/%E5%A4%8D%E5%88%B6/" style="font-size: 12px;">复制</a> <a href="/tags/%E6%9F%A5%E8%AF%A2%E4%BC%98%E5%8C%96/" style="font-size: 10px;">查询优化</a> <a href="/tags/%E6%AD%BB%E9%94%81/" style="font-size: 14px;">死锁</a> <a href="/tags/%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF/" style="font-size: 12px;">统计信息</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/08/">August 2020</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/06/">June 2020</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">April 2020</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">February 2020</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/09/">September 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/08/">August 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/07/">July 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/06/">June 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/04/">April 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/03/">March 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/02/">February 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">August 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/07/">July 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/06/">June 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/04/">April 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/02/">February 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/01/">January 2018</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2020/08/17/hello-world/">Hello World</a>
+          </li>
+        
+          <li>
+            <a href="/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/">Innodb系统表-结构解析</a>
+          </li>
+        
+          <li>
+            <a href="/2020/06/08/MySQL%E4%B8%AD%E5%A6%82%E4%BD%95%E6%8E%A7%E5%88%B6SQL%E5%9C%A8%E6%B5%8B%E8%AF%95-%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E5%85%B7%E6%9C%89%E7%9B%B8%E5%90%8C%E7%9A%84%E6%89%A7%E8%A1%8C%E8%B7%AF%E5%BE%84/">MySQL中如何控制SQL在测试-生产环境具有相同的执行路径</a>
+          </li>
+        
+          <li>
+            <a href="/2020/04/04/RC%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB%E4%B8%8B%EF%BC%8C%E6%AD%BB%E9%94%81%E6%A1%88%E4%BE%8B%E5%88%86%E6%9E%90/">RC隔离级别下，死锁案例分析</a>
+          </li>
+        
+          <li>
+            <a href="/2020/02/27/MySQL%E5%A4%8D%E5%88%B6%E5%AE%89%E5%85%A8%E5%88%86%E6%9E%90/">MySQL复制安全分析</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      &copy; 2020 Dong Hong Yu<br>
+      Powered by <a href="http://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+<script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+
+
+  
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+  
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+  </div>
+</body>
+</html>

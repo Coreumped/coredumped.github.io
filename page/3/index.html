@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+
+  
+  <title>随便写写</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="description" content="小白一个">
+<meta property="og:type" content="website">
+<meta property="og:title" content="随便写写">
+<meta property="og:url" content="http://yoursite.com/page/3/index.html">
+<meta property="og:site_name" content="随便写写">
+<meta property="og:description" content="小白一个">
+<meta property="og:locale">
+<meta property="article:author" content="Dong Hong Yu">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="随便写写" type="application/atom+xml">
+  
+  
+    <link rel="icon" href="/favicon.png">
+  
+  
+    <link href="//fonts.googleapis.com/css?family=Source+Code+Pro" rel="stylesheet" type="text/css">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 5.0.2"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">随便写写</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://yoursite.com"></form>
+      </div>
+    </div>
+  </div>
+</header>
+      <div class="outer">
+        <section id="main">
+  
+    <article id="post-MySQL中的统计信息相关参数介绍" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2018/02/11/MySQL%E4%B8%AD%E7%9A%84%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF%E7%9B%B8%E5%85%B3%E5%8F%82%E6%95%B0%E4%BB%8B%E7%BB%8D/" class="article-date">
+  <time datetime="2018-02-11T07:14:52.000Z" itemprop="datePublished">2018-02-11</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2018/02/11/MySQL%E4%B8%AD%E7%9A%84%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF%E7%9B%B8%E5%85%B3%E5%8F%82%E6%95%B0%E4%BB%8B%E7%BB%8D/">MySQL中的统计信息相关参数介绍</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h1 id="MySQL中的统计信息相关参数介绍"><a href="#MySQL中的统计信息相关参数介绍" class="headerlink" title="MySQL中的统计信息相关参数介绍"></a>MySQL中的统计信息相关参数介绍</h1><h2 id="统计信息的作用"><a href="#统计信息的作用" class="headerlink" title="统计信息的作用"></a>统计信息的作用</h2><p>上周同事在客户现场遇到了由于统计信息的原因导致应用数据迁移时间过慢，差点就导致了迁移失败。最后同事彭许生发现测试环境与生产环境SQL语句执行计划不一致，立刻收集统计信息才保证迁移能正常完成。<br>统计信息对于SQL的执行时间有重要的影响，统计信息的不准确会导致SQL的执行计划不准确导致SQL执行时间变慢，Oracle DBA非常了解统计信息的收集规则，在MySQL中也有相关的参数去控制统计信息。</p>
+<h2 id="相关参数"><a href="#相关参数" class="headerlink" title="相关参数"></a>相关参数</h2><h3 id="innodb-stats-auto-recalc"><a href="#innodb-stats-auto-recalc" class="headerlink" title="innodb_stats_auto_recalc"></a>innodb_stats_auto_recalc</h3><p>控制innodb是否自动收集统计信息，默认是打开的。当表中数据变化超过%10时候，就会重新计算统计信息。参数的生效依赖于建表时指定innodb_stats_persistent是打开的或CREATE TABLE , ALTER TABLE 时指定STATS_PERSISTENT=1采样page的个数通过参数innodb_stats_persistent_sample_pages来控制。</p>
+<h4 id="测试验证"><a href="#测试验证" class="headerlink" title="测试验证"></a>测试验证</h4><p>创建一张测试表，并在表上创建一个索引:</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">create</span> <span class="keyword">table</span> dhytest (<span class="keyword">id</span> <span class="built_in">int</span>) STATS_PERSISTENT=<span class="number">1</span>;</span><br><span class="line"><span class="keyword">create</span> <span class="keyword">index</span> idx_id <span class="keyword">on</span> dhytest(<span class="keyword">id</span>);</span><br></pre></td></tr></table></figure>
+<p>通过mysql.innodb_index_stats可以查看索引最后收集统计信息的时间,这里的聚集索引我们删除先不用去看，只看自己创建的二级索引</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">[root@shadow:/root 5.7.18-log_Instance1 root@localhost:test 22:37:43]&gt;select * from mysql.innodb_index_stats where database_name = &#x27;test&#x27;;</span><br><span class="line">+<span class="comment">---------------+------------+-----------------+---------------------+--------------+------------+-------------+-----------------------------------+</span></span><br><span class="line">| database_name | table_name | index_name      | last_update         | stat_name    | stat_value | sample_size | stat_description                  |</span><br><span class="line">+<span class="comment">---------------+------------+-----------------+---------------------+--------------+------------+-------------+-----------------------------------+</span></span><br><span class="line">| test          | dhytest    | idx_id          | 2017-07-10 22:36:06 | n_diff_pfx01 |          0 |           1 | id                                |</span><br><span class="line">| test          | dhytest    | idx_id          | 2017-07-10 22:36:06 | n_diff_pfx02 |          0 |           1 | id,DB_ROW_ID                      |</span><br><span class="line">| test          | dhytest    | idx_id          | 2017-07-10 22:36:06 | n_leaf_pages |          1 |        NULL | Number of leaf pages in the index |</span><br><span class="line">| test          | dhytest    | idx_id          | 2017-07-10 22:36:06 | size         |          1 |        NULL | Number of pages in the index      |</span><br><span class="line">+<span class="comment">---------------+------------+-----------------+---------------------+--------------+------------+-------------+-----------------------------------+</span></span><br><span class="line">7 rows in <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br></pre></td></tr></table></figure>
+<p>我们手工往表中插入数据，让数据的变化超过%10</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">[root@shadow:/root 5.7.18-log_Instance1 root@localhost:test 22:37:56]&gt;insert into dhytest values (10);</span><br><span class="line">Query OK, 1 row affected (0.00 sec)</span><br><span class="line"></span><br><span class="line">[root@shadow:/root 5.7.18-log_Instance1 root@localhost:test 22:38:17]&gt;insert into dhytest select * from dhytest;</span><br><span class="line">Query OK, 1 row affected (0.00 sec)</span><br><span class="line">Records: 1  Duplicates: 0  Warnings: 0</span><br><span class="line"></span><br><span class="line">[root@shadow:/root 5.7.18-log_Instance1 root@localhost:test 22:38:28]&gt;insert into dhytest select * from dhytest;</span><br><span class="line">Query OK, 2 rows affected (0.00 sec)</span><br><span class="line">Records: 2  Duplicates: 0  Warnings: 0</span><br><span class="line"></span><br><span class="line">[root@shadow:/root 5.7.18-log_Instance1 root@localhost:test 22:38:31]&gt;insert into dhytest select * from dhytest;</span><br><span class="line">Query OK, 4 rows affected (0.01 sec)</span><br><span class="line">Records: 4  Duplicates: 0  Warnings: 0</span><br><span class="line"></span><br><span class="line">[root@shadow:/root 5.7.18-log_Instance1 root@localhost:test 22:38:34]&gt;insert into dhytest select * from dhytest;</span><br><span class="line">Query OK, 8 rows affected (0.00 sec)</span><br><span class="line">Records: 8  Duplicates: 0  Warnings: 0</span><br><span class="line"></span><br><span class="line">[root@shadow:/root 5.7.18-log_Instance1 root@localhost:test 22:38:35]&gt;insert into dhytest select * from dhytest;</span><br><span class="line">Query OK, 16 rows affected (0.00 sec)</span><br><span class="line">Records: 16  Duplicates: 0  Warnings: 0</span><br></pre></td></tr></table></figure>
+<p>这时我们在查看下mysql.innodb_index_stats表,last_update时间发生了变化</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">[root@shadow:/root 5.7.18-log_Instance1 root@localhost:test 22:38:36]&gt;select * from mysql.innodb_index_stats where database_name = &#x27;test&#x27;;</span><br><span class="line">+<span class="comment">---------------+------------+-----------------+---------------------+--------------+------------+-------------+-----------------------------------+</span></span><br><span class="line">| database_name | table_name | index_name      | last_update         | stat_name    | stat_value | sample_size | stat_description                  |</span><br><span class="line">+<span class="comment">---------------+------------+-----------------+---------------------+--------------+------------+-------------+-----------------------------------+</span></span><br><span class="line">| test          | dhytest    | idx_id          | 2017-07-10 22:38:28 | n_diff_pfx01 |          1 |           1 | id                                |</span><br><span class="line">| test          | dhytest    | idx_id          | 2017-07-10 22:38:28 | n_diff_pfx02 |          2 |           1 | id,DB_ROW_ID                      |</span><br><span class="line">| test          | dhytest    | idx_id          | 2017-07-10 22:38:28 | n_leaf_pages |          1 |        NULL | Number of leaf pages in the index |</span><br><span class="line">| test          | dhytest    | idx_id          | 2017-07-10 22:38:28 | size         |          1 |        NULL | Number of pages in the index      |</span><br><span class="line">+<span class="comment">---------------+------------+-----------------+---------------------+--------------+------------+-------------+-----------------------------------+</span></span><br><span class="line">7 rows in <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br></pre></td></tr></table></figure>
+<h3 id="innodb-stats-persistent"><a href="#innodb-stats-persistent" class="headerlink" title="innodb_stats_persistent"></a>innodb_stats_persistent</h3><p>控制是否将统计信息持久到磁盘当中，设置此参数之后我们就不需要实时去收集统计信息了，因为实时收集统计信息在高并发下可能会造成一定的性能上影响，并且会导致执行计划有所不同。建议是将此参数打开，将innodb_stats_auto_recalc参数进行关闭。</p>
+<h3 id="innodb-stats-persistent-sample-pages"><a href="#innodb-stats-persistent-sample-pages" class="headerlink" title="innodb_stats_persistent_sample_pages"></a>innodb_stats_persistent_sample_pages</h3><p>控制收集统计信息时采样的page数量，默认是20。收集的page数量越多，每次收集统计信息的实际则越长，但是统计信息也相对比较准确。</p>
+<p>我们可以在创建表的时候对不同的表指定不同的page数量、是否将统计信息持久化到磁盘上、是否自动收集统计信息</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> <span class="string">`t1`</span> (</span><br><span class="line"><span class="string">`id`</span> <span class="built_in">int</span>(<span class="number">8</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span> auto_increment,</span><br><span class="line"><span class="string">`data`</span> <span class="built_in">varchar</span>(<span class="number">255</span>),</span><br><span class="line"><span class="string">`date`</span> datetime,</span><br><span class="line">PRIMARY <span class="keyword">KEY</span>  (<span class="string">`id`</span>),</span><br><span class="line"><span class="keyword">INDEX</span> <span class="string">`DATE_IX`</span> (<span class="string">`date`</span>)</span><br><span class="line">) <span class="keyword">ENGINE</span>=<span class="keyword">InnoDB</span>,</span><br><span class="line">  STATS_PERSISTENT=<span class="number">1</span>,</span><br><span class="line">  STATS_AUTO_RECALC=<span class="number">1</span>,</span><br><span class="line">  STATS_SAMPLE_PAGES=<span class="number">25</span>;</span><br></pre></td></tr></table></figure>
+
+<h3 id="innodb-stats-on-metadata"><a href="#innodb-stats-on-metadata" class="headerlink" title="innodb_stats_on_metadata"></a>innodb_stats_on_metadata</h3><p>此参数在5.6.5版本之前是默认开启的，设置此参数后当我们执行show index 或者 show table status  或者访问INFORMATION_SCHEMA.TABLES or INFORMATION_SCHEMA.STATISTICS表时就会收集统计信息，但是这样可能会导致执行计划改变。<br>在以前当表中记录变化超过1/16就会收集统计信息，但是现在如果设置了innodb_stats_persistent就不会有这样的说法了。</p>
+<img src="/2018/02/11/MySQL%E4%B8%AD%E7%9A%84%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF%E7%9B%B8%E5%85%B3%E5%8F%82%E6%95%B0%E4%BB%8B%E7%BB%8D/persistent.png" class="">
+
+
+<h3 id="innodb-stats-include-delete-marked"><a href="#innodb-stats-include-delete-marked" class="headerlink" title="innodb_stats_include_delete_marked"></a>innodb_stats_include_delete_marked</h3><p>5.6.35版本中新增的参数，就是在未提交的事务中如果我们删除了记录，收集统计信息的时候是排查这些删除了的记录的。这样就可能导致统计信息并不是很准确，设置此参数之后就是收集统计信息的时候包含未提交事务中被标记为已删除的数据。</p>
+<h3 id="innodb-stats-method"><a href="#innodb-stats-method" class="headerlink" title="innodb_stats_method"></a>innodb_stats_method</h3><p>控制统计信息针对索引中NULL值的算法<br>当设置为nulls_equal 所有的NULL值都视为一个value group<br>当设置为nulls_unequal每一个NULL值被视为一个value group<br>设置为nulls_ignored时 NULL值被忽略<br>这个参数同事彭许生做过一些测试发现nulls_equal和nulls_unequal没有发现show index中的cardinality有不同的地方，但是如果设置为nulls_ignored的时候会有所不同</p>
+<h4 id="测试"><a href="#测试" class="headerlink" title="测试"></a>测试</h4><p>表结构数据</p>
+<img src="/2018/02/11/MySQL%E4%B8%AD%E7%9A%84%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF%E7%9B%B8%E5%85%B3%E5%8F%82%E6%95%B0%E4%BB%8B%E7%BB%8D/create_table.png" class="">
+<p>设置为nulls_ignored</p>
+<img src="/2018/02/11/MySQL%E4%B8%AD%E7%9A%84%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF%E7%9B%B8%E5%85%B3%E5%8F%82%E6%95%B0%E4%BB%8B%E7%BB%8D/nulls_ignored.png" class="">
+<p>设置为nulls_unequal</p>
+<img src="/2018/02/11/MySQL%E4%B8%AD%E7%9A%84%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF%E7%9B%B8%E5%85%B3%E5%8F%82%E6%95%B0%E4%BB%8B%E7%BB%8D/nulls_unequal.png" class="">
+<p>设置为nulls_equal</p>
+<img src="/2018/02/11/MySQL%E4%B8%AD%E7%9A%84%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF%E7%9B%B8%E5%85%B3%E5%8F%82%E6%95%B0%E4%BB%8B%E7%BB%8D/nulls_equal.png" class="">
+
+
+
+<h2 id="推荐配置"><a href="#推荐配置" class="headerlink" title="推荐配置"></a>推荐配置</h2><p>innodb_stats_method 统计信息的自动收集在高并发情况下可能会带来性能的抖动，建议将此参数关闭。<br>innodb_stats_persistent 建议打开此参数将统计信息持久化到磁盘上<br>innodb_stats_include_delete_marked建议设置开启，这样可以针对未提交事务中删除的数据也收集统计信息<br>innodb_stats_method经过测试和mos查看到的按默认配置就可以，当然如果设置nulls_ignored时候会让你的语句走到索引，但是效率并不一定是好的</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://yoursite.com/2018/02/11/MySQL%E4%B8%AD%E7%9A%84%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF%E7%9B%B8%E5%85%B3%E5%8F%82%E6%95%B0%E4%BB%8B%E7%BB%8D/" data-id="ckdyc8e3k000arluued612btq" class="article-share-link">Share</a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/MySQL/" rel="tag">MySQL</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E4%BC%98%E5%8C%96/" rel="tag">优化</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF/" rel="tag">统计信息</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+  
+    <article id="post-MySQL的一个表最多可以有多少个字段" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2018/01/23/MySQL%E7%9A%84%E4%B8%80%E4%B8%AA%E8%A1%A8%E6%9C%80%E5%A4%9A%E5%8F%AF%E4%BB%A5%E6%9C%89%E5%A4%9A%E5%B0%91%E4%B8%AA%E5%AD%97%E6%AE%B5/" class="article-date">
+  <time datetime="2018-01-23T09:44:42.000Z" itemprop="datePublished">2018-01-23</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2018/01/23/MySQL%E7%9A%84%E4%B8%80%E4%B8%AA%E8%A1%A8%E6%9C%80%E5%A4%9A%E5%8F%AF%E4%BB%A5%E6%9C%89%E5%A4%9A%E5%B0%91%E4%B8%AA%E5%AD%97%E6%AE%B5/">MySQL的一个表最多可以有多少个字段</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h1 id="MySQL的一个表最多可以有多少个字段"><a href="#MySQL的一个表最多可以有多少个字段" class="headerlink" title="MySQL的一个表最多可以有多少个字段"></a>MySQL的一个表最多可以有多少个字段</h1><h2 id="问题由来"><a href="#问题由来" class="headerlink" title="问题由来"></a>问题由来</h2><p>引用我们客户的原话：<br><em>创建如下表，提示我：</em></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[Err] 1118 - Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p><em>如果我将下面表中的varchar（200），修改成text（或blob）：报错变为另一个：</em></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Row size too large (&gt; 8126). Changing some columns to TEXT or BLOB or using ROW_FORMAT&#x3D;DYNAMIC or ROW_FORMAT&#x3D;COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.</span><br></pre></td></tr></table></figure>
+<p><em>我们查阅了很多的资料，不确定The maximum row size到底是65535 还是8126？原理是什么？</em></p>
+<h2 id="三种报错的疑惑"><a href="#三种报错的疑惑" class="headerlink" title="三种报错的疑惑"></a>三种报错的疑惑</h2><p>我们整理了一下，其实类似的错误有三种：</p>
+<ul>
+<li>错误1 创建表报maximum row size &gt; 65535<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">[Err] 1118 - Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs</span><br></pre></td></tr></table></figure></li>
+<li>错误2 创建表报Row size too large (&gt; 8126)<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Row size too large (&gt; 8126). Changing some columns to TEXT or BLOB or using ROW_FORMAT&#x3D;DYNAMIC or ROW_FORMAT&#x3D;COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.</span><br></pre></td></tr></table></figure></li>
+<li>错误3 表创建成功但是插入报 Row size too large (&gt; 8126)<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ERROR 1118 (42000): Row size too large (&gt; 8126). Changing some columns to TEXT or BLOB or using ROW_FORMAT&#x3D;DYNAMIC or ROW_FORMAT&#x3D;COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.</span><br></pre></td></tr></table></figure>
+
+
+</li>
+</ul>
+<h2 id="到底要闹哪样"><a href="#到底要闹哪样" class="headerlink" title="到底要闹哪样"></a>到底要闹哪样</h2><img src="/2018/01/23/MySQL%E7%9A%84%E4%B8%80%E4%B8%AA%E8%A1%A8%E6%9C%80%E5%A4%9A%E5%8F%AF%E4%BB%A5%E6%9C%89%E5%A4%9A%E5%B0%91%E4%B8%AA%E5%AD%97%E6%AE%B5/%E9%83%81%E9%97%B7.jpg" class="">
+
+
+<p>这么多错误，还都不一样，MySQL到底要闹那样<br>别急，一个问题一个问题的看</p>
+<h3 id="错误1"><a href="#错误1" class="headerlink" title="错误1:"></a>错误1:</h3><p>  这个报错其实我们查询MySQL官方手册就可以查询到， 对于一行记录最大的限制是65535字节。为什么是65535，不要问我，手册也没说:)—-一行数据里面字段长度定义有64k，我也是醉了</p>
+<h3 id="错误2"><a href="#错误2" class="headerlink" title="错误2:"></a>错误2:</h3><p>既生瑜何生亮？有了65535的限制以后还有一个8126的限制是为什么列？</p>
+<p>MySQL是分两层的，MySQL Server层 + 存储引擎层。<br>第2个问题其实是MySQL除了在Server层做了一次限制还会在Innodb存储引擎层在做一次限制。</p>
+<p>innodb为了保证B+TREE是一个平衡树结构，强制要求一条记录的大小不能超过一个页大小的一半。这也就是我们上面看到的第二个错误。</p>
+<p>下面是innodb B+树的结构，我们可以想象一下二分查找时，一个页的只有一条数据会是什么样子？</p>
+<img src="/2018/01/23/MySQL%E7%9A%84%E4%B8%80%E4%B8%AA%E8%A1%A8%E6%9C%80%E5%A4%9A%E5%8F%AF%E4%BB%A5%E6%9C%89%E5%A4%9A%E5%B0%91%E4%B8%AA%E5%AD%97%E6%AE%B5/B-Tree.jpg" class="">
+
+
+
+
+<p>每个页只有一条数据的查找就变成了链表查找了。这样就没有二分查找的意义了。<br>而MySQL中默认的页大小是16K，16K的一半是8196字节减去一些元数据信息就得出了8126这个数字。<br><strong>这就是8126的由来</strong></p>
+<h3 id="错误3"><a href="#错误3" class="headerlink" title="错误3:"></a>错误3:</h3><h4 id="突破错误2"><a href="#突破错误2" class="headerlink" title="突破错误2"></a>突破错误2</h4><p>8126是不是不能突破的列？</p>
+<p>我们这里就有个案例：按照附1的建表语句建立一个150个字段，每个字段是100个字符（特地使用了ASCII字符集，这样一个字符就是一个字节）的表。</p>
+<p>150 * 100=15000 &gt; 8126。按照上面的说法，应该要报错的，<br>但是各位可以在自己的数据库上试一下，表能够建立成功，这是为什么列？</p>
+<p>其实MySQL在计算字段长度的时候并不是按照字段的全部长度来记的。<br>列字段小于40个字节的都会按实际字节计算，如果大于20 * 2=40 字节就只会按40字节。</p>
+<p>对应到MySQL代码中storage/innobase/dict/dict0dict.cc的dict_index_too_big_for_tree()中:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">field_max_size &#x3D; dict_col_get_max_size(col);</span><br><span class="line">field_ext_max_size &#x3D; field_max_size &lt; 256 ? 1 : 2;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">if (field-&gt;prefix_len) &#123;</span><br><span class="line">    if (field-&gt;prefix_len &lt; field_max_size) &#123;</span><br><span class="line">        field_max_size &#x3D; field-&gt;prefix_len;</span><br><span class="line">    &#125;</span><br><span class="line">&#125; else if (field_max_size &gt; BTR_EXTERN_FIELD_REF_SIZE * 2</span><br><span class="line">     ¦ &amp;&amp; dict_index_is_clust(new_index)) &#123;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    &#x2F;* In the worst case, we have a locally stored</span><br><span class="line">    column of BTR_EXTERN_FIELD_REF_SIZE * 2 bytes.</span><br><span class="line">    The length can be stored in one byte.  If the</span><br><span class="line">    column were stored externally, the lengths in</span><br><span class="line">    the clustered index page would be</span><br><span class="line">    BTR_EXTERN_FIELD_REF_SIZE and 2. *&#x2F;</span><br><span class="line">    field_max_size &#x3D; BTR_EXTERN_FIELD_REF_SIZE * 2;</span><br><span class="line">    field_ext_max_size &#x3D; 1;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>也就是说，如果字段长度超过BTR_EXTERN_FIELD_REF_SIZE * 2，字段就只算20 * 2=40(BTR_EXTERN_FIELD_REF_SIZE=20)<br>举例如下:</p>
+<ul>
+<li>创建一个300个字段长度类型为varchar(30)的表，在创建时不会创建成功。因为varchar(30)没有超过20<em>2，那么总长度就是300</em>30=9000 &gt; 8126就会创建失败。</li>
+<li>创建一个150个字段长度类型为varchar(100)的表可以创建成功。因为varchar(100) 大于了20<em>2那么就只会按40计算 总长度就是150</em>20*2=6000 &lt; 8126 就会创建成功。</li>
+</ul>
+<img src="/2018/01/23/MySQL%E7%9A%84%E4%B8%80%E4%B8%AA%E8%A1%A8%E6%9C%80%E5%A4%9A%E5%8F%AF%E4%BB%A5%E6%9C%89%E5%A4%9A%E5%B0%91%E4%B8%AA%E5%AD%97%E6%AE%B5/%E7%9C%BC%E5%89%8D%E4%B8%80%E4%BA%AE.jpg" class="">
+
+
+<p>这个20字节是不是看着有点眼熟，可以联系到InnoDB的一个参数：innodb_file_format。该参数用于设置Innodb表内部存储的文件格式，该参数可设置为Antelope,Barracuda两种格式。</p>
+<ul>
+<li>Antelope是MySQL原始的记录格式，是较古老的记录格式。<br>在这种格式记录下Innodb 对于大字段的处理如下:</li>
+</ul>
+<img src="/2018/01/23/MySQL%E7%9A%84%E4%B8%80%E4%B8%AA%E8%A1%A8%E6%9C%80%E5%A4%9A%E5%8F%AF%E4%BB%A5%E6%9C%89%E5%A4%9A%E5%B0%91%E4%B8%AA%E5%AD%97%E6%AE%B5/Antelope.jpg" class="">
+
+
+<p>对于大字段，innodb只会存放前DICT_ANTELOPE_MAX_INDEX_COL_LEN（768）字节在数据页中，超过768字节都会放到溢出页中。这种方式也是B+TREE结构，但是也并不是完美的，因为我们将大字段存放到了数据页中会造成叶子节点的个数会很多，同样会造成非叶子节点的的个数增加。最终导致索引层级增高，访问IO次数增加。</p>
+<ul>
+<li>Barracuda格式是InnoDB新的存储格式<br>他的存储方式如下:</li>
+</ul>
+<img src="/2018/01/23/MySQL%E7%9A%84%E4%B8%80%E4%B8%AA%E8%A1%A8%E6%9C%80%E5%A4%9A%E5%8F%AF%E4%BB%A5%E6%9C%89%E5%A4%9A%E5%B0%91%E4%B8%AA%E5%AD%97%E6%AE%B5/Compressed.jpg" class="">
+
+<p>在Barracuda格式下，会用20字节的指针指向溢出页，这样做的好处就是不会造成索引层级的增高。</p>
+<h3 id="回到错误3"><a href="#回到错误3" class="headerlink" title="回到错误3"></a>回到错误3</h3><p>回归正题，第二个错误我们可以越过去，但是我们是不是能够真的插入150个100字符的字段列。<br>用附2的插入语句试一下就知道，错误3也会报错出来。<br>也就是说表可以创建成功但是插入却失败，原因如下：</p>
+<ul>
+<li>Antelope格式下的COMPACT大字段按照DICT_ANTELOPE_MAX_INDEX_COL_LEN（768）字节溢出页。varchar(100)没有存储为溢出页。</li>
+<li>Barracuda的DYNAMIC和COMPRESSED格式下只有长字段才会用20字节溢出页的方式，varchar(100)也没有存储为溢出页。</li>
+</ul>
+<p>引用reference的原文如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">When a table is created with ROW_FORMAT&#x3D;DYNAMIC or ROW_FORMAT&#x3D;COMPRESSED, long variable-length column values (for VARBINARY,VARCHAR, BLOB, and TEXT columns) are stored fully off-page, and the clustered index record contains only a 20-byte pointer to the overflow page. InnoDB will also store long CHAR column values off-page if the column value is greater than or equal to 768 bytes, which can occur when the maximum byte length of the character set is greater than 3, as it is with utf8mb4, for example.</span><br><span class="line"></span><br><span class="line">Whether any columns are stored off-page depends on the page size and the total size of the row. When the row is too long, InnoDBchooses the longest columns for off-page storage until the clustered index record fits on the B-tree page. TEXT and BLOB columns that are less than or equal to 40 bytes are always stored in-line.</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>总的来说，</p>
+<ul>
+<li>MySQL Server最多只允许4096个字段</li>
+<li>InnoDB 最多只能有1000个字段</li>
+<li>字段长度加起来如果超过65535，MySQL server层就会拒绝创建表</li>
+<li>字段长度加起来（根据溢出页指针来计算字段长度，大于40的，溢出，只算40个字节）如果超过8126，InnoDB拒绝创建表</li>
+<li>表结构中根据ROW_FORMAT的存储格式确定行内部保留的字节数（20 VS 768），最终确定一行数据是否小于8126，如果大于8126，报错。</li>
+</ul>
+<h2 id="建议"><a href="#建议" class="headerlink" title="建议"></a>建议</h2><ol>
+<li>放弃使用Antelope这种古老的存储格式吧，原因上面也说到了把大字段的前768字节放在数据页中，这样会导致索引的层级很高，会直接影响到查询的性能。</li>
+<li>对于大字段类型建议单独存放到一张表中，不要与经常访问的表放在一起，会造成物理IO的增加。</li>
+</ol>
+<h2 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h2><p><a target="_blank" rel="noopener" href="http://dev.mysql.com/doc/refman/5.7/en/column-count-limit.html">MySQL reference: Limits on Table Column Count and Row Size</a><br><a target="_blank" rel="noopener" href="http://dev.mysql.com/doc/refman/5.6/en/innodb-row-format-dynamic.html">MySQL reference: innodb row format dynamic</a><br><a target="_blank" rel="noopener" href="http://mysqlserverteam.com/externally-stored-fields-in-innodb/">mysqlserverteam:Externally Stored Fields in InnoDB</a></p>
+<p><a target="_blank" rel="noopener" href="http://mysql.taobao.org/monthly/2016/02/01/">MySQL · 引擎特性 · InnoDB 文件系统之文件物理结构</a></p>
+<h2 id="附1-建表语句"><a href="#附1-建表语句" class="headerlink" title="附1. 建表语句"></a>附1. 建表语句</h2><p>附上测试的建表语句和insert语句，有兴趣的朋友可以自己按照上面的几种方式在Antelope和Barracuda的几种不同ROW_FORMAT格式上试试。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br></pre></td><td class="code"><pre><span class="line">create table xjblg1</span><br><span class="line">(</span><br><span class="line">  jydm                         VARCHAR(100),</span><br><span class="line">  rq                           VARCHAR(100),</span><br><span class="line">  cb                           VARCHAR(100),</span><br><span class="line">  khdkjdkjjse                  VARCHAR(100),</span><br><span class="line">  xyhjkjzje                    VARCHAR(100),</span><br><span class="line">  khckhtycfkxjzje              VARCHAR(100),</span><br><span class="line">  qzkhck                       VARCHAR(100),</span><br><span class="line">  tyjqtjrjgcfk                 VARCHAR(100),</span><br><span class="line">  shcftyjqtjrjgje              VARCHAR(100),</span><br><span class="line">  crzjxjlr                     VARCHAR(100),</span><br><span class="line">  shdcczjje                    VARCHAR(100),</span><br><span class="line">  xsdmchgssddxj                VARCHAR(100),</span><br><span class="line">  shdmrfsxje                   VARCHAR(100),</span><br><span class="line">  czjyxjrzcjzje                VARCHAR(100),</span><br><span class="line">  sqlxsxfjyjdxj                VARCHAR(100),</span><br><span class="line">  sdlx                         VARCHAR(100),</span><br><span class="line">  sddsxf                       VARCHAR(100),</span><br><span class="line">  jrqywlsrsddxj                VARCHAR(100),</span><br><span class="line">  zjywsrsddxj                  VARCHAR(100),</span><br><span class="line">  zqtzsysddxj                  VARCHAR(100),</span><br><span class="line">  hdjsysddxj                   VARCHAR(100),</span><br><span class="line">  qtyyjyywjsrsddxj             VARCHAR(100),</span><br><span class="line">  crbzjsddxj                   VARCHAR(100),</span><br><span class="line">  sddwtzj                      VARCHAR(100),</span><br><span class="line">  gjsxjlr                      VARCHAR(100),</span><br><span class="line">  txsddxj                      VARCHAR(100),</span><br><span class="line">  xssptglwsddxj                VARCHAR(100),</span><br><span class="line">  sddsffh                      VARCHAR(100),</span><br><span class="line">  qtfzzjlrdxj                  VARCHAR(100),</span><br><span class="line">  shdyyyqndhxddkjyskx          VARCHAR(100),</span><br><span class="line">  qtyfzskjslcdxj               VARCHAR(100),</span><br><span class="line">  czdzzcsddxj                  VARCHAR(100),</span><br><span class="line">  sdqtyjyhdygdxj               VARCHAR(100),</span><br><span class="line">  jyhdxjlrxj                   VARCHAR(100),</span><br><span class="line">  khdkjdkjzje                  VARCHAR(100),</span><br><span class="line">  cfzyyhhtykxjzje              VARCHAR(100),</span><br><span class="line">  cfzyyh                       VARCHAR(100),</span><br><span class="line">  cftyjqtjgck                  VARCHAR(100),</span><br><span class="line">  cczjjxjlc                    VARCHAR(100),</span><br><span class="line">  chzyyhjkxzyyhjkjjse          VARCHAR(100),</span><br><span class="line">  zfdck                        VARCHAR(100),</span><br><span class="line">  jstyjqtjrjgcfje              VARCHAR(100),</span><br><span class="line">  chtyjqtjrjgcrje              VARCHAR(100),</span><br><span class="line">  chmchgkxje                   VARCHAR(100),</span><br><span class="line">  zfmrfskxje                   VARCHAR(100),</span><br><span class="line">  czkgcsjrzcjjse               VARCHAR(100),</span><br><span class="line">  zflxsxfjyjdxj                VARCHAR(100),</span><br><span class="line">  zfdlx                        VARCHAR(100),</span><br><span class="line">  sxfzczfdxj                   VARCHAR(100),</span><br><span class="line">  zfgzgyjwzgzfdxj              VARCHAR(100),</span><br><span class="line">  zfdgxsf                      VARCHAR(100),</span><br><span class="line">  yxjzfdyyfy                   VARCHAR(100),</span><br><span class="line">  yjrjgwlzcdxjje               VARCHAR(100),</span><br><span class="line">  txzfdxj                      VARCHAR(100),</span><br><span class="line">  yhxdzdkjlxsh                 VARCHAR(100),</span><br><span class="line">  gjsxjlc                      VARCHAR(100),</span><br><span class="line">  gmspjslwzfdxj                VARCHAR(100),</span><br><span class="line">  jrqtzjjjse                   VARCHAR(100),</span><br><span class="line">  qtzcjszcdxj                  VARCHAR(100),</span><br><span class="line">  qtyszfkjsshdxj               VARCHAR(100),</span><br><span class="line">  zfqtyjyhdygdxj               VARCHAR(100),</span><br><span class="line">  jyhdxjlcxj                   VARCHAR(100),</span><br><span class="line">  jyhdcsdxjllje                VARCHAR(100),</span><br><span class="line">  shtzsddxj                    VARCHAR(100),</span><br><span class="line">  qdtzsysddxj                  VARCHAR(100),</span><br><span class="line">  qzfdglhlrssddxj              VARCHAR(100),</span><br><span class="line">  czgdzcwxzcjqtzcesddxj        VARCHAR(100),</span><br><span class="line">  czgqtzssddxj                 VARCHAR(100),</span><br><span class="line">  qdzgsjqtyydwssddxjje         VARCHAR(100),</span><br><span class="line">  sdqtytzhdygdxj               VARCHAR(100),</span><br><span class="line">  tzhdxjlrxj                   VARCHAR(100),</span><br><span class="line">  tzzfdxj                      VARCHAR(100),</span><br><span class="line">  qyxtzzzzfdxj                 VARCHAR(100),</span><br><span class="line">  zqtzszfdxj                   VARCHAR(100),</span><br><span class="line">  gmzgslyqyjhyqytzszfdxjje     VARCHAR(100),</span><br><span class="line">  zjzjgcszfdxj                 VARCHAR(100),</span><br><span class="line">  gjgdzcwxzchqtcqzczfdxj       VARCHAR(100),</span><br><span class="line">  qdzgsjqtyydwzfdxjje          VARCHAR(100),</span><br><span class="line">  zfdqtytzhdygdxj              VARCHAR(100),</span><br><span class="line">  tzhdxjlcxj                   VARCHAR(100),</span><br><span class="line">  tzhdcsdxjllje                VARCHAR(100),</span><br><span class="line">  xstzssddxj                   VARCHAR(100),</span><br><span class="line">  fxzqhzcsxsdxj                VARCHAR(100),</span><br><span class="line">  qdjksddxj                    VARCHAR(100),</span><br><span class="line">  fxzqsddxj                    VARCHAR(100),</span><br><span class="line">  qzfxcjzqsddxj                VARCHAR(100),</span><br><span class="line">  zjgbssddxj                   VARCHAR(100),</span><br><span class="line">  sdqtyczhdygdxj               VARCHAR(100),</span><br><span class="line">  czhdxjlrxj                   VARCHAR(100),</span><br><span class="line">  chzwszfdxj                   VARCHAR(100),</span><br><span class="line">  fpgllrhcflxzfdxj             VARCHAR(100),</span><br><span class="line">  qzcflxszfdxj                 VARCHAR(100),</span><br><span class="line">  zfxgfxfy                     VARCHAR(100),</span><br><span class="line">  zfqtyczhdygdxj               VARCHAR(100),</span><br><span class="line">  czhdxjlcxj                   VARCHAR(100),</span><br><span class="line">  czhdcsdxjllje                VARCHAR(100),</span><br><span class="line">  hlbddxjjxjdjwdyx             VARCHAR(100),</span><br><span class="line">  xjjxjdjwjzje                 VARCHAR(100),</span><br><span class="line">  qcxjjxjdjwye                 VARCHAR(100),</span><br><span class="line">  qmxjjxjdjwye                 VARCHAR(100),</span><br><span class="line">  jlr                          VARCHAR(100),</span><br><span class="line">  ssgdqy                       VARCHAR(100),</span><br><span class="line">  qzjtdhzzb                    VARCHAR(100),</span><br><span class="line">  jtddksszb                    VARCHAR(100),</span><br><span class="line">  jtdzcjzzb                    VARCHAR(100),</span><br><span class="line">  chcftyjzzb                   VARCHAR(100),</span><br><span class="line">  jtdzzcjzzb                   VARCHAR(100),</span><br><span class="line">  jtqtzcjzzb                   VARCHAR(100),</span><br><span class="line">  gdzczjyqzcchscxswzccj        VARCHAR(100),</span><br><span class="line">  tzxfdczj                     VARCHAR(100),</span><br><span class="line">  wxzcdyzcjqtzcdtx             VARCHAR(100),</span><br><span class="line">  qzwxzctx                     VARCHAR(100),</span><br><span class="line">  cqdtfytx                     VARCHAR(100),</span><br><span class="line">  czgdzcwxzchqtcqzcdsssy       VARCHAR(100),</span><br><span class="line">  cztzxfdcdsssy                VARCHAR(100),</span><br><span class="line">  gdzcbfss                     VARCHAR(100),</span><br><span class="line">  cwfy                         VARCHAR(100),</span><br><span class="line">  dtfydjszj                    VARCHAR(100),</span><br><span class="line">  ytfydzjjs                    VARCHAR(100),</span><br><span class="line">  tzssjsy                      VARCHAR(100),</span><br><span class="line">  gyjzbdsyss                   VARCHAR(100),</span><br><span class="line">  hdsy                         VARCHAR(100),</span><br><span class="line">  ysjrgjjyjsy                  VARCHAR(100),</span><br><span class="line">  chdjs                        VARCHAR(100),</span><br><span class="line">  dkdjs                        VARCHAR(100),</span><br><span class="line">  ckdzj                        VARCHAR(100),</span><br><span class="line">  cjkxdjz                      VARCHAR(100),</span><br><span class="line">  yjfzdzj                      VARCHAR(100),</span><br><span class="line">  sdyhxkx                      VARCHAR(100),</span><br><span class="line">  jrfzdzj                      VARCHAR(100),</span><br><span class="line">  dysdszcdjs                   VARCHAR(100),</span><br><span class="line">  dysdsfzdzj                   VARCHAR(100),</span><br><span class="line">  jyxysxmdjs                   VARCHAR(100),</span><br><span class="line">  jyxyfxmdzj                   VARCHAR(100),</span><br><span class="line">  jyxqtzcdjs                   VARCHAR(100),</span><br><span class="line">  jyxqtfzdzj                   VARCHAR(100),</span><br><span class="line">  qt                           VARCHAR(100),</span><br><span class="line">  jyhdxjllje                   VARCHAR(100),</span><br><span class="line">  ygdzcchzw                    VARCHAR(100),</span><br><span class="line">  ytzchzw                      VARCHAR(100),</span><br><span class="line">  ygdzcjxtz                    VARCHAR(100),</span><br><span class="line">  zyzwzb                       VARCHAR(100),</span><br><span class="line">  ynndqdkzhgszq                VARCHAR(100),</span><br><span class="line">  rzzrgdzc                     VARCHAR(100),</span><br><span class="line">  qtbsjxjszdtzhczhdje          VARCHAR(100),</span><br><span class="line">  xjdqmye                      VARCHAR(100),</span><br><span class="line">  jxjdqcye                     VARCHAR(100),</span><br><span class="line">  xjdjwdqmye                   VARCHAR(100),</span><br><span class="line">  jxjdjwdqcye                  VARCHAR(100),</span><br><span class="line">  xjjxjdjwjzje1                VARCHAR(100)</span><br><span class="line">) ENGINE&#x3D;InnoDB DEFAULT CHARSET&#x3D;ascii;;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<h2 id="附2-insert-语句"><a href="#附2-insert-语句" class="headerlink" title="附2. insert 语句"></a>附2. insert 语句</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br></pre></td><td class="code"><pre><span class="line">insert into xjblg1 values(</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100),</span><br><span class="line">repeat(&#39;y&#39;,100));</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://yoursite.com/2018/01/23/MySQL%E7%9A%84%E4%B8%80%E4%B8%AA%E8%A1%A8%E6%9C%80%E5%A4%9A%E5%8F%AF%E4%BB%A5%E6%9C%89%E5%A4%9A%E5%B0%91%E4%B8%AA%E5%AD%97%E6%AE%B5/" data-id="ckdyc8e4p002brluue3pnb1h2" class="article-share-link">Share</a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/MySQL/" rel="tag">MySQL</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E4%BC%98%E5%8C%96/" rel="tag">优化</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+  
+    <article id="post-optimizer-switch引起的诡异问题" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2018/01/23/optimizer-switch%E5%BC%95%E8%B5%B7%E7%9A%84%E8%AF%A1%E5%BC%82%E9%97%AE%E9%A2%98/" class="article-date">
+  <time datetime="2018-01-23T08:13:44.000Z" itemprop="datePublished">2018-01-23</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2018/01/23/optimizer-switch%E5%BC%95%E8%B5%B7%E7%9A%84%E8%AF%A1%E5%BC%82%E9%97%AE%E9%A2%98/">optimizer_switch引起的诡异问题</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h3 id="参数描述"><a href="#参数描述" class="headerlink" title="参数描述"></a>参数描述</h3><p>MySQL中不同的版本优化器会有很多新特性，比如MRR、BKA等，optimizer_switch这个参数就是控制查询优化器怎样使用这些特性。很多情况下我们会根据自身的需求去设置optimizer_switch满足我们的需求。前段时间客户的环境中遇到一个奇怪的问题，select count(*)显示返回是有数据但是select * 返回是空结果集，最终的原因就是因为optimizer_switch设置引起了一个BUG。这里和大家分享下防止大家也遇到同样的坑。</p>
+<h3 id="案例分析"><a href="#案例分析" class="headerlink" title="案例分析"></a>案例分析</h3><h4 id="环境描述"><a href="#环境描述" class="headerlink" title="环境描述"></a>环境描述</h4><p>数据库版本MySQL5.6.35</p>
+<h4 id="SQL语句"><a href="#SQL语句" class="headerlink" title="SQL语句"></a>SQL语句</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">select * from (select o.orderid,o.orderdatetime,o.orderstatus,o.price,o.expway,o.paytype,o.fee,o.ordertype,o.realid,mm.account,ms.shopname,mmt.organcode,  o.activitype,o.channelcode, ma.activitytag,md.tagtip from mall_order o  left join mall_member mm on o.buyerid&#x3D;mm.memberid left join mall_shop ms on o.salerid&#x3D;ms.userid  left join mall_merchant mmt on mmt.merchantid&#x3D;o.salerid left join mall_activity ma on o.activityid&#x3D;ma.actid  left join mall_direct_activity md on ma.actid&#x3D;md.actid where  1&#x3D;1  and o.orderdatetime &gt;&#x3D; &#39;2017-03-01 01:40:03&#39; and o.orderdatetime &lt;&#x3D; &#39;2017-03-25 01:40:03&#39;  ) as  tab  where  tab.organcode &#x3D; &#39;805000&#39; order by orderdatetime desc limit 10;</span><br></pre></td></tr></table></figure>
+<h4 id="分析过程"><a href="#分析过程" class="headerlink" title="分析过程"></a>分析过程</h4><p>当时凌晨4点左右客户打来电话告知数据库查询不到数据了非常着急，我们赶到了现场，当时的现象是这样的:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">select * from (select o.orderid,o.orderdatetime,o.orderstatus,o.price,o.expway,o.paytype,o.fee,o.ordertype,o.realid,mm.account,ms.shopname,mmt.organcode,  o.activitype,o.channelcode, ma.activitytag,md.tagtip from mall_order o  left join mall_member mm on o.buyerid&#x3D;mm.memberid left join mall_shop ms on o.salerid&#x3D;ms.userid  left join mall_merchant mmt on mmt.merchantid&#x3D;o.salerid left join mall_activity ma on o.activityid&#x3D;ma.actid  left join mall_direct_activity md on ma.actid&#x3D;md.actid where  1&#x3D;1  and o.orderdatetime &gt;&#x3D; &#39;2017-03-01 01:40:03&#39; and o.orderdatetime &lt;&#x3D; &#39;2017-03-25 01:40:03&#39;  ) as  tab  where  tab.organcode &#x3D; &#39;805000&#39; order by orderdatetime desc limit 10;</span><br></pre></td></tr></table></figure>
+<p>这条语句查询返回的结果集是空，但是开发人员和我们说数据库中是有数据的，我当时不相信就执行了一下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">select * from (select o.orderid,o.orderdatetime,o.orderstatus,o.price,o.expway,o.paytype,o.fee,o.ordertype,o.realid,mm.account,ms.shopname,mmt.organcode,  o.activitype,o.channelcode, ma.activitytag,md.tagtip from mall_order o  left join mall_member mm on o.buyerid&#x3D;mm.memberid left join mall_shop ms on o.salerid&#x3D;ms.userid  left join mall_merchant mmt on mmt.merchantid&#x3D;o.salerid left join mall_activity ma on o.activityid&#x3D;ma.actid  left join mall_direct_activity md on ma.actid&#x3D;md.actid where  1&#x3D;1  and o.orderdatetime &gt;&#x3D; &#39;2017-03-01 01:40:03&#39; and o.orderdatetime &lt;&#x3D; &#39;2017-03-25 01:40:03&#39;  ) as  tab  where  tab.organcode &#x3D; &#39;805000&#39; order by orderdatetime desc limit 10;</span><br><span class="line">Empty set (0.41 sec)</span><br><span class="line"></span><br><span class="line">select count(*) from (select o.orderid,o.orderdatetime,o.orderstatus,o.price,o.expway,o.paytype,o.fee,o.ordertype,o.realid,mm.account,ms.shopname,mmt.organcode,  o.activitype,o.channelcode, ma.activitytag,md.tagtip from mall_order o  left join mall_member mm on o.buyerid&#x3D;mm.memberid left join mall_shop ms on o.salerid&#x3D;ms.userid  left join mall_merchant mmt on mmt.merchantid&#x3D;o.salerid left join mall_activity ma on o.activityid&#x3D;ma.actid  left join mall_direct_activity md on ma.actid&#x3D;md.actid where  1&#x3D;1  and o.orderdatetime &gt;&#x3D; &#39;2017-03-01 01:40:03&#39; and o.orderdatetime &lt;&#x3D; &#39;2017-03-25 01:40:03&#39;  ) as  tab  where  tab.organcode &#x3D; &#39;805000&#39; order by orderdatetime desc limit 10;</span><br><span class="line">+----------+</span><br><span class="line">| count(*) |</span><br><span class="line">+----------+</span><br><span class="line">|      475 |</span><br><span class="line">+----------+</span><br><span class="line">1 row in set (0.41 sec)</span><br></pre></td></tr></table></figure>
+<p>当时也是比较慌张了，count(*)显示返回475条记录但是select *却返回空结果集。。。<br>想了一下SQL语句有一层嵌套，我看看里面这个SQL是否有问题，测试后发现内层语句可以正常返回，加上外层语句时就会出现这种情况。询问了应用人员系统刚迁移过来，在原系统没有这种情况，快速连到原系统上执行同样的语句对比一下两边的执行计划:<br>原系统</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">explain  select * from (select o.orderid,o.orderdatetime,o.orderstatus,o.price,o.expway,o.paytype,o.fee,o.ordertype,o.realid,mm.account,ms.shopname,mmt.organcode,  o.activitype,o.channelcode, ma.activitytag,md.tagtip from mall_order o  left join mall_member mm on o.buyerid&#x3D;mm.memberid left join mall_shop ms on o.salerid&#x3D;ms.userid  left join mall_merchant mmt on mmt.merchantid&#x3D;o.salerid left join mall_activity ma on o.activityid&#x3D;ma.actid  left join mall_direct_activity md on ma.actid&#x3D;md.actid where  1&#x3D;1  and o.orderdatetime &gt;&#x3D; &#39;2017-03-01 01:40:03&#39; and o.orderdatetime &lt;&#x3D; &#39;2017-03-25 01:40:03&#39;  ) as  tab  where  tab.organcode &#x3D; &#39;805000&#39; order by orderdatetime desc limit 10;</span><br><span class="line">+----+-------------+------------+--------+------------------------+-------------------+---------+-------------------+-------+-----------------------------+</span><br><span class="line">| id | select_type | table      | type   | possible_keys          | key               | key_len | ref               | rows  | Extra                       |</span><br><span class="line">+----+-------------+------------+--------+------------------------+-------------------+---------+-------------------+-------+-----------------------------+</span><br><span class="line">|  1 | PRIMARY     | &lt;derived2&gt; | ref    | &lt;auto_key0&gt;            | &lt;auto_key0&gt;       | 153     | const             |    10 | Using where; Using filesort |</span><br><span class="line">|  2 | DERIVED     | o          | range  | idx_orderdatetime      | idx_orderdatetime | 6       | NULL              | 46104 | Using index condition       |</span><br><span class="line">|  2 | DERIVED     | mm         | eq_ref | PRIMARY,idx_memberid   | PRIMARY           | 8       | mall.o.buyerid    |     1 | NULL                        |</span><br><span class="line">|  2 | DERIVED     | ms         | ref    | idx_userid             | idx_userid        | 9       | mall.o.salerid    |     1 | NULL                        |</span><br><span class="line">|  2 | DERIVED     | mmt        | eq_ref | PRIMARY,idx_merchantid | PRIMARY           | 8       | mall.o.salerid    |     1 | NULL                        |</span><br><span class="line">|  2 | DERIVED     | ma         | eq_ref | PRIMARY                | PRIMARY           | 8       | mall.o.activityid |     1 | NULL                        |</span><br><span class="line">|  2 | DERIVED     | md         | ref    | idx_activityid         | idx_activityid    | 8       | mall.ma.actid     |     1 | NULL                        |</span><br><span class="line">+----+-------------+------------+--------+------------------------+-------------------+---------+-------------------+-------+-----------------------------+</span><br><span class="line">7 rows in set (0.00 sec)</span><br></pre></td></tr></table></figure>
+<p>新系统</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">explain  select * from (select o.orderid,o.orderdatetime,o.orderstatus,o.price,o.expway,o.paytype,o.fee,o.ordertype,o.realid,mm.account,ms.shopname,mmt.organcode,  o.activitype,o.channelcode, ma.activitytag,md.tagtip from mall_order o  left join mall_member mm on o.buyerid&#x3D;mm.memberid left join mall_shop ms on o.salerid&#x3D;ms.userid  left join mall_merchant mmt on mmt.merchantid&#x3D;o.salerid left join mall_activity ma on o.activityid&#x3D;ma.actid  left join mall_direct_activity md on ma.actid&#x3D;md.actid where  1&#x3D;1  and o.orderdatetime &gt;&#x3D; &#39;2017-03-01 01:40:03&#39; and o.orderdatetime &lt;&#x3D; &#39;2017-03-25 01:40:03&#39;  ) as  tab  where  tab.organcode &#x3D; &#39;805000&#39; order by orderdatetime desc limit 10;</span><br><span class="line">+----+-------------+------------+--------+------------------------+-------------------+---------+-------------------+-------+----------------------------------+</span><br><span class="line">| id | select_type | table      | type   | possible_keys          | key               | key_len | ref               | rows  | Extra                            |</span><br><span class="line">+----+-------------+------------+--------+------------------------+-------------------+---------+-------------------+-------+----------------------------------+</span><br><span class="line">|  1 | PRIMARY     | &lt;derived2&gt; | ref    | &lt;auto_key0&gt;            | &lt;auto_key0&gt;       | 153     | const             |    10 | Using where; Using filesort      |</span><br><span class="line">|  2 | DERIVED     | o          | range  | idx_orderdatetime      | idx_orderdatetime | 6       | NULL              | 46104 | Using index condition; Using MRR |</span><br><span class="line">|  2 | DERIVED     | mm         | eq_ref | PRIMARY,idx_memberid   | PRIMARY           | 8       | mall.o.buyerid    |     1 | NULL                             |</span><br><span class="line">|  2 | DERIVED     | ms         | ref    | idx_userid             | idx_userid        | 9       | mall.o.salerid    |     1 | NULL                             |</span><br><span class="line">|  2 | DERIVED     | mmt        | eq_ref | PRIMARY,idx_merchantid | PRIMARY           | 8       | mall.o.salerid    |     1 | NULL                             |</span><br><span class="line">|  2 | DERIVED     | ma         | eq_ref | PRIMARY                | PRIMARY           | 8       | mall.o.activityid |     1 | NULL                             |</span><br><span class="line">|  2 | DERIVED     | md         | ref    | idx_activityid         | idx_activityid    | 8       | mall.ma.actid     |     1 | NULL                             |</span><br><span class="line">+----+-------------+------------+--------+------------------------+-------------------+---------+-------------------+-------+----------------------------------+</span><br><span class="line">7 rows in set (0.00 sec)</span><br></pre></td></tr></table></figure>
+<p>两边的执行计划不同的地方就是新系统使用了MRR，数据库的版本都是5.6.20之后的小版本号没有差很多应该不会出现这种情况。<br>想到了optimizer_switch这个参数可以设置mrr特性，是不是有人修改了他，对比了两边optimizer_switch这个参数发现mrr_cost_based这个值设置的不同。快速的将参数设置为一样再次查询:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">set optimizer_switch&#x3D;&#39;mrr_cost_based&#x3D;on&#39;;</span><br><span class="line">Query OK, 0 rows affected (0.00 sec)</span><br><span class="line"></span><br><span class="line">select * from (select o.orderid,o.orderdatetime,o.orderstatus,o.price,o.expway,o.paytype,o.fee,o.ordertype,o.realid,mm.account,ms.shopname,mmt.organcode,  o.activitype,o.channelcode, ma.activitytag,md.tagtip from mall_order o  left join mall_member mm on o.buyerid&#x3D;mm.memberid left join mall_shop ms on o.salerid&#x3D;ms.userid  left join mall_merchant mmt on mmt.merchantid&#x3D;o.salerid left join mall_activity ma on o.activityid&#x3D;ma.actid  left join mall_direct_activity md on ma.actid&#x3D;md.actid where  1&#x3D;1  and o.orderdatetime &gt;&#x3D; &#39;2017-03-01 01:40:03&#39; and o.orderdatetime &lt;&#x3D; &#39;2017-03-25 01:40:03&#39;  ) as  tab  where  tab.organcode &#x3D; &#39;805000&#39; order by orderdatetime desc limit 10;</span><br><span class="line">.</span><br><span class="line">.</span><br><span class="line">.</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>立刻就返回数据了。</p>
+<h3 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h3><p>mrr_cost_based代表是否使用基于代价的方式去计算使用MRR特性，新的系统中将他设置为off代表不使用基于代价方式而是使用基于规则的，这样设置的原因是考虑到MySQL基于代价的方式比较保守不能使用到MRR这个特性。本身设置这个参数是没有任何问题，只不过是正好将遇mrr_cost_based设置为off时碰到了这么诡异BUG，希望可以帮助到遇到同样问题的朋友们。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://yoursite.com/2018/01/23/optimizer-switch%E5%BC%95%E8%B5%B7%E7%9A%84%E8%AF%A1%E5%BC%82%E9%97%AE%E9%A2%98/" data-id="ckdyc8e4k0023rluuefa9ge2q" class="article-share-link">Share</a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/MySQL/" rel="tag">MySQL</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E6%9F%A5%E8%AF%A2%E4%BC%98%E5%8C%96/" rel="tag">查询优化</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+  
+    <article id="post-MySQL主从数据一致性" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2018/01/23/MySQL%E4%B8%BB%E4%BB%8E%E6%95%B0%E6%8D%AE%E4%B8%80%E8%87%B4%E6%80%A7/" class="article-date">
+  <time datetime="2018-01-23T07:47:41.000Z" itemprop="datePublished">2018-01-23</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2018/01/23/MySQL%E4%B8%BB%E4%BB%8E%E6%95%B0%E6%8D%AE%E4%B8%80%E8%87%B4%E6%80%A7/">MySQL主从数据一致性</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>在我们的系统中可能很多朋友都会遇到主从复制数据不一致的情况，有时候跑着跑着就会这样。<br>我整理了几个参数，是为了保证主从数据一致性。希望对大家有帮助。</p>
+<ul>
+<li>首先介绍一下两个文件:</li>
+</ul>
+<p>|文件名          | 作用        |<br>|————-|:———–:|:————–:|<br>|relay-log-info|记录SQL线程读取Master binlog的位置，用于Slave down机之后根据文件中记录的pos点恢复SQL线程|<br>|master-info|记录IO线程读取已经读取到的Master binlog位置，用于Slave down机之后IO线程根据文件中记录的pos点重新拉取binlog日志|</p>
+<p>这两个文件在写的时候并不是实时更新，而是有两个参数进行控制。</p>
+<table>
+<thead>
+<tr>
+<th>参数名</th>
+<th align="left">含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>sync_relay_log_info</td>
+<td align="left">执行多少个事务后将relay-log-info，sync一下文件刷新到磁盘上</td>
+</tr>
+<tr>
+<td>sync_master_info</td>
+<td align="left">执行多少个事务后将master-info sync一下文件刷新到磁盘上</td>
+</tr>
+</tbody></table>
+<p>为了保证文件中内容是实时更新的(如果不是实时更新必然会造成主备主备数据不一致，例如Slave down机时，我们执行了999个事务。这时master-info还并没有sync到磁盘上，Slave恢复后就会多拉取999个事务)，我们要将两个参数设置为1。<br>但是这里有一个问题，虽然是每一次都去sync到磁盘上，但是还是存在问题。</p>
+<p>举个例子:</p>
+<ol>
+<li>正常跑的Slave突然掉电了，但是最后一个事务已经commit成功了。但是可能还没有将sync_relay_log_info sync到磁盘上。因为sync文件这个动作并不是在事务中，不能得到保证。</li>
+<li>等待Slave恢复之后，会去读取relay_log_info文件。就会将最后一个事务进程重做一遍，后面主备可能会正常运行但是数据会出现不一致。</li>
+</ol>
+<p>MySQL中提供了两个参数:</p>
+<table>
+<thead>
+<tr>
+<th>参数名</th>
+<th align="center">含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>relay-log-info-repository</td>
+<td align="center">将relay-log-info记录到表中(slave_relay_log_info)</td>
+</tr>
+<tr>
+<td>master-info-repository</td>
+<td align="center">将master-info记录到表中(slave_master_info)</td>
+</tr>
+</tbody></table>
+<p>当记录在表中并且sync_relay_log_info与sync_master_info设置为1的时候就不会出现上面那种情况，因为都是Innodb表有事务的保证。但是sync_master_info设置为1每一次都去刷新一次效率必然很低。<br>这里可能有人会有疑问sync_relay_log_info不是不需要设置为1嘛？MySQL官方文档中是这样写的:</p>
+<img src="/2018/01/23/MySQL%E4%B8%BB%E4%BB%8E%E6%95%B0%E6%8D%AE%E4%B8%80%E8%87%B4%E6%80%A7/sync_relay_log_info.png" class="">
+
+
+<p>从图中我们就明白了 relay-log-info-repository设置为记录在表中时，默认就是1.</p>
+<p>MySQL5.6中有一个参数提供了一个参数:</p>
+<ul>
+<li>relay_log_recovery<br>这个参数的含义是，当Shalve 重启之后会根据slave_relay_log_info表重新创建一个文件，SQL线程会根据这个文件进行恢复复制，IO线程会读取SQL线程的pos点，根据这个pos点向主库申请拉取数据。</li>
+</ul>
+<p>也就是我们只要设置了:<br>relay-log-info-repository = TABLE<br>relay_log_recovery = ON<br>就可以避免主从库数据不一致情况。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://yoursite.com/2018/01/23/MySQL%E4%B8%BB%E4%BB%8E%E6%95%B0%E6%8D%AE%E4%B8%80%E8%87%B4%E6%80%A7/" data-id="ckdyc8e3o000frluud3ua2f92" class="article-share-link">Share</a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/MySQL/" rel="tag">MySQL</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E4%B8%BB%E4%BB%8E/" rel="tag">主从</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+  
+    <article id="post-MySQL-MVCC实现原理" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2018/01/23/MySQL-MVCC%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86/" class="article-date">
+  <time datetime="2018-01-23T06:37:28.000Z" itemprop="datePublished">2018-01-23</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2018/01/23/MySQL-MVCC%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86/">MySQL MVCC实现原理</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h2 id="MVCC介绍"><a href="#MVCC介绍" class="headerlink" title="MVCC介绍"></a>MVCC介绍</h2><p>我们首先介绍下什么是MVCC及解决了什么问题:</p>
+<table>
+<thead>
+<tr>
+<th>session 1</th>
+<th>session 2</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>select a from test; return a = 10</td>
+<td></td>
+</tr>
+<tr>
+<td>start transaction;</td>
+<td></td>
+</tr>
+<tr>
+<td>update test set a = 20;</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>start transaction;</td>
+</tr>
+<tr>
+<td></td>
+<td>select a from test; return ?</td>
+</tr>
+<tr>
+<td>commit;</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>select a from test; return ?</td>
+</tr>
+<tr>
+<td>我们看下上面这个例子，当我们修改一条记录没有提交的同时，session 2 来进行查询这时候返回记录应该是多少呢？在session 1 提交之后 session 2 查询出来的又是多少呢？</td>
+<td></td>
+</tr>
+<tr>
+<td>这个问题是需要看事务隔离级别的，情况如下:</td>
+<td></td>
+</tr>
+</tbody></table>
+<ul>
+<li>隔离级别为 READ-UNCOMMITTED 情况下:<br>session 1 commit前后 session 2 去查看都会看到的是修改后的结果 a = 20</li>
+<li>隔离级别为 READ-COMMITTED 情况下:<br>session 1 commit 前查看到的还是 a =10 , commit之后看到的是 a = 20</li>
+<li>隔离级别为 REPEATABLE-READ， SERIALIZABLE 情况下:<br>session 1 commit前后 session 2 去查看都会看到的是修改后的结果 a = 10</li>
+</ul>
+<p>我们抛开数据库中的ACID，这里就涉及到一个问题 ， 修改后的数据数据库是怎么做到查询出来的结果还是之前的数据呢？<br>其实就是借助数据库中的UNDO和MVCC实现的</p>
+<img src="/2018/01/23/MySQL-MVCC%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86/mvcc-1.png" class="">
+
+
+
+<p>当插入一条数据时记录上对应的回滚段指针为NULL</p>
+<img src="/2018/01/23/MySQL-MVCC%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86/mvcc-2.png" class="">
+
+
+<p>当更新记录时将原记录放入到undo表空间中，我们查询返回未修改的数据就是从undo中返回的。MySQL中就是根据记录上的回滚段指针及事务ID判断记录是否可见。<br>具体的判断流程如下:<br>在每个事务开始的时候，会将当前系统中的所有的活跃事务拷贝到一个列表中(read view)</p>
+<img src="/2018/01/23/MySQL-MVCC%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86/mvcc-3.png" class="">
+
+
+<h2 id="具体代码"><a href="#具体代码" class="headerlink" title="具体代码"></a>具体代码</h2><h3 id="Innodb表存储"><a href="#Innodb表存储" class="headerlink" title="Innodb表存储"></a>Innodb表存储</h3><p>Inoodb表中会存有三个隐藏字段，这三个字段是mysql默认帮我们添加的。我们可以通过代码中查看到:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line">dict_table_add_system_columns(</span><br><span class="line">&#x2F;*&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;*&#x2F;</span><br><span class="line">dict_table_t*    table,    &#x2F;*!&lt; in&#x2F;out: table *&#x2F;</span><br><span class="line">mem_heap_t*    heap)    &#x2F;*!&lt; in: temporary heap *&#x2F;</span><br><span class="line">&#123;</span><br><span class="line">ut_ad(table);</span><br><span class="line">ut_ad(table-&gt;n_def &#x3D;&#x3D; (table-&gt;n_cols - table-&gt;get_n_sys_cols()));</span><br><span class="line">ut_ad(table-&gt;magic_n &#x3D;&#x3D; DICT_TABLE_MAGIC_N);</span><br><span class="line">ut_ad(!table-&gt;cached);</span><br><span class="line"></span><br><span class="line">&#x2F;* NOTE: the system columns MUST be added in the following order</span><br><span class="line">(so that they can be indexed by the numerical value of DATA_ROW_ID,</span><br><span class="line">etc.) and as the last columns of the table memory object.</span><br><span class="line">The clustered index will not always physically contain all system</span><br><span class="line">columns.</span><br><span class="line">Intrinsic table don&#39;t need DB_ROLL_PTR as UNDO logging is turned off</span><br><span class="line">for these tables. *&#x2F;</span><br><span class="line"></span><br><span class="line">dict_mem_table_add_col(table, heap, &quot;DB_ROW_ID&quot;, DATA_SYS,</span><br><span class="line">      DATA_ROW_ID | DATA_NOT_NULL,</span><br><span class="line">      DATA_ROW_ID_LEN);</span><br><span class="line"></span><br><span class="line">#if (DATA_ITT_N_SYS_COLS !&#x3D; 2)</span><br><span class="line">#error &quot;DATA_ITT_N_SYS_COLS !&#x3D; 2&quot;</span><br><span class="line">#endif</span><br><span class="line"></span><br><span class="line">#if DATA_ROW_ID !&#x3D; 0</span><br><span class="line">#error &quot;DATA_ROW_ID !&#x3D; 0&quot;</span><br><span class="line">#endif</span><br><span class="line">dict_mem_table_add_col(table, heap, &quot;DB_TRX_ID&quot;, DATA_SYS,</span><br><span class="line">      DATA_TRX_ID | DATA_NOT_NULL,</span><br><span class="line">      DATA_TRX_ID_LEN);</span><br><span class="line">#if DATA_TRX_ID !&#x3D; 1</span><br><span class="line">#error &quot;DATA_TRX_ID !&#x3D; 1&quot;</span><br><span class="line">#endif</span><br><span class="line"></span><br><span class="line">if (!table-&gt;is_intrinsic()) &#123;</span><br><span class="line">dict_mem_table_add_col(table, heap, &quot;DB_ROLL_PTR&quot;, DATA_SYS,</span><br><span class="line">      DATA_ROLL_PTR | DATA_NOT_NULL,</span><br><span class="line">      DATA_ROLL_PTR_LEN);</span><br><span class="line">#if DATA_ROLL_PTR !&#x3D; 2</span><br><span class="line">#error &quot;DATA_ROLL_PTR !&#x3D; 2&quot;</span><br><span class="line">#endif</span><br><span class="line"></span><br><span class="line">&#x2F;* This check reminds that if a new system column is added to</span><br><span class="line">the program, it should be dealt with here *&#x2F;</span><br><span class="line">#if DATA_N_SYS_COLS !&#x3D; 3</span><br><span class="line">#error &quot;DATA_N_SYS_COLS !&#x3D; 3&quot;</span><br><span class="line">#endif</span><br><span class="line">&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>DB_ROW_ID:如果表中没有显示定义主键或者没有唯一索引则MySQL会自动创建一个6字节的row id存在记录中<br>DB_TRX_ID:事务ID<br>DB_ROLL_PTR:回滚段指针</p>
+<p>mysql中并不是根据事务的事务ID进行比较判断记录是否可见，而是根据每一行记录上的事务ID进行比较来判断记录是否可见。</p>
+<p>我们可以通过实验验证 ， 创建一张表里面插入一条记录</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">dhy@10.16.70.190:3306  12:25:47 [dhy]&gt;select * from dhytest;</span><br><span class="line">+------+</span><br><span class="line">| id   |</span><br><span class="line">+------+</span><br><span class="line">|   10 |</span><br><span class="line">+------+</span><br><span class="line">1 row in set (7.99 sec)</span><br></pre></td></tr></table></figure>
+<p>手工开启一个事务 更新一条记录 但是并不提交:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">dhy@10.10.80.199:3306  15:28:24 [dhy]&gt;update dhytest set id &#x3D; 20;</span><br><span class="line">Query OK, 3 rows affected (40.71 sec)</span><br><span class="line">Rows matched: 3  Changed: 3  Warnings: 0</span><br></pre></td></tr></table></figure>
+<p>在另外一个会话执行查询</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">dhy@10.16.70.190:3306  12:38:33 [dhy]&gt;select * from dhytest;</span><br></pre></td></tr></table></figure>
+
+<p>这时我们可以跟踪调试mysql 查看他是怎么判断记录的看见性，中间函数调用太多列举最重要部分<br>首先介绍一个重要的类 ReadView,Read View是事务开启时当前所有事务的一个集合,这个类中存储了当前Read View中最大事务ID及最小事务ID</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;** The read should not see any transaction with trx id &gt;&#x3D; this</span><br><span class="line">value. In other words, this is the &quot;high water mark&quot;. *&#x2F;</span><br><span class="line">trx_id_t    m_low_limit_id;</span><br><span class="line"></span><br><span class="line">&#x2F;** The read should see all trx ids which are strictly</span><br><span class="line">smaller (&lt;) than this value.  In other words, this is the</span><br><span class="line">low water mark&quot;. *&#x2F;</span><br><span class="line">trx_id_t    m_up_limit_id;</span><br><span class="line"></span><br><span class="line">&#x2F;** trx id of creating transaction, set to TRX_ID_MAX for free</span><br><span class="line">views. *&#x2F;</span><br><span class="line">trx_id_t    m_creator_trx_id;</span><br><span class="line"></span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>当我们执行上面的查询语句时,跟踪到主要函数如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">函数row_search_mvcc-&gt;lock_clust_rec_cons_read_sees</span><br><span class="line">bool</span><br><span class="line">lock_clust_rec_cons_read_sees(</span><br><span class="line">&#x2F;*&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;*&#x2F;</span><br><span class="line">const rec_t*    rec,    &#x2F;*!&lt; in: user record which should be read or</span><br><span class="line">passed over by a read cursor *&#x2F;</span><br><span class="line">dict_index_t*    index,    &#x2F;*!&lt; in: clustered index *&#x2F;</span><br><span class="line">const ulint*    offsets,&#x2F;*!&lt; in: rec_get_offsets(rec, index) *&#x2F;</span><br><span class="line">ReadView*    view)    &#x2F;*!&lt; in: consistent read view *&#x2F;</span><br><span class="line">&#123;</span><br><span class="line">ut_ad(index-&gt;is_clustered());</span><br><span class="line">ut_ad(page_rec_is_user_rec(rec));</span><br><span class="line">ut_ad(rec_offs_validate(rec, index, offsets));</span><br><span class="line"></span><br><span class="line">&#x2F;* Temp-tables are not shared across connections and multiple</span><br><span class="line">transactions from different connections cannot simultaneously</span><br><span class="line">operate on same temp-table and so read of temp-table is</span><br><span class="line">always consistent read. *&#x2F;</span><br><span class="line">&#x2F;&#x2F;只读事务或者临时表是不需要一致性读的判断</span><br><span class="line">if (srv_read_only_mode || index-&gt;table-&gt;is_temporary()) &#123;</span><br><span class="line">ut_ad(view &#x3D;&#x3D; 0 || index-&gt;table-&gt;is_temporary());</span><br><span class="line">return(true);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;* NOTE that we call this function while holding the search</span><br><span class="line">system latch. *&#x2F;</span><br><span class="line"></span><br><span class="line">trx_id_t    trx_id &#x3D; row_get_rec_trx_id(rec, index, offsets); &#x2F;&#x2F;获取记录上的TRX_ID这里需要解释下，我们一个查询可能满足的记录数有多个。那我们每读取一条记录的时候就要根据这条记录上的TRX_ID判断这条记录是否可见</span><br><span class="line">return(view-&gt;changes_visible(trx_id, index-&gt;table-&gt;name)); &#x2F;&#x2F;判断记录可见性</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>下面是真正判断记录的看见性。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line">bool changes_visible(</span><br><span class="line">trx_id_t    id,</span><br><span class="line">const table_name_t&amp;    name) const</span><br><span class="line">MY_ATTRIBUTE((warn_unused_result))</span><br><span class="line">&#123;</span><br><span class="line">ut_ad(id &gt; 0);</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;如果ID小于Read View中最小的, 则这条记录是可以看到。说明这条记录是在select这个事务开始之前就结束的</span><br><span class="line">if (id &lt; m_up_limit_id || id &#x3D;&#x3D; m_creator_trx_id) &#123;</span><br><span class="line"></span><br><span class="line">return(true);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">check_trx_id_sanity(id, name);</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;如果比Read View中最大的还要大，则说明这条记录是在事务开始之后进行修改的，所以此条记录不应查看到</span><br><span class="line">if (id &gt;&#x3D; m_low_limit_id) &#123;</span><br><span class="line"></span><br><span class="line">return(false);</span><br><span class="line"></span><br><span class="line">&#125; else if (m_ids.empty()) &#123;</span><br><span class="line"></span><br><span class="line">return(true);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">const ids_t::value_type*    p &#x3D; m_ids.data();</span><br><span class="line"></span><br><span class="line">return(!std::binary_search(p, p + m_ids.size(), id)); &#x2F;&#x2F;判断是否在Read View中， 如果在说明在创建Read View时 此条记录还处于活跃状态则不应该查询到，否则说明创建Read View是此条记录已经是不活跃状态则可以查询到</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>对于不可见的记录都是通过row_vers_build_for_consistent_read函数查询UNDO构建老版本记录，直到记录可见。</p>
+<p>这里需要说明一点 不同的事务隔离级别，可见性的实现也不一样:</p>
+<ul>
+<li>READ-COMMITTED<br>事务内的每个查询语句都会重新创建Read View，这样就会产生不可重复读现象发生</li>
+<li>REPEATABLE-READ<br>事务内开始时创建Read View ， 在事务结束这段时间内 每一次查询都不会重新重建Read View ， 从而实现了可重复读。</li>
+</ul>
+<p>参考资料:<br>《唐成－2016PG大会-数据库多版本实现内幕.pdf》</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://yoursite.com/2018/01/23/MySQL-MVCC%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86/" data-id="ckdyc8e3e0005rluu05zufynf" class="article-share-link">Share</a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/MVCC/" rel="tag">MVCC</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/MySQL/" rel="tag">MySQL</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+  
+
+
+  <nav id="page-nav">
+    
+    <a class="extend prev" rel="prev" href="/page/2/">&amp;laquo; Prev</a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span>
+  </nav>
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/Greenplum/" rel="tag">Greenplum</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Innodb/" rel="tag">Innodb</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Innodb-Lock/" rel="tag">Innodb Lock</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Linux/" rel="tag">Linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/MGR/" rel="tag">MGR</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/MVCC/" rel="tag">MVCC</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/MySQL/" rel="tag">MySQL</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/MySQL-Group-Replicaton/" rel="tag">MySQL Group Replicaton</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/PosgreSQL-%E6%BA%90%E7%A0%81/" rel="tag">PosgreSQL 源码</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/PostgreSQL/" rel="tag">PostgreSQL</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/SQL/" rel="tag">SQL</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/SQL%E4%BC%98%E5%8C%96/" rel="tag">SQL优化</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/WAL%E6%97%A5%E5%BF%97/" rel="tag">WAL日志</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/mysql/" rel="tag">mysql</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E4%B8%BB%E4%BB%8E/" rel="tag">主从</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E4%BC%98%E5%8C%96/" rel="tag">优化</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%A4%87%E4%BB%BD%E6%81%A2%E5%A4%8D/" rel="tag">备份恢复</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%A4%8D%E5%88%B6/" rel="tag">复制</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%9F%A5%E8%AF%A2%E4%BC%98%E5%8C%96/" rel="tag">查询优化</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%AD%BB%E9%94%81/" rel="tag">死锁</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF/" rel="tag">统计信息</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/Greenplum/" style="font-size: 10px;">Greenplum</a> <a href="/tags/Innodb/" style="font-size: 10px;">Innodb</a> <a href="/tags/Innodb-Lock/" style="font-size: 10px;">Innodb Lock</a> <a href="/tags/Linux/" style="font-size: 10px;">Linux</a> <a href="/tags/MGR/" style="font-size: 12px;">MGR</a> <a href="/tags/MVCC/" style="font-size: 10px;">MVCC</a> <a href="/tags/MySQL/" style="font-size: 20px;">MySQL</a> <a href="/tags/MySQL-Group-Replicaton/" style="font-size: 12px;">MySQL Group Replicaton</a> <a href="/tags/PosgreSQL-%E6%BA%90%E7%A0%81/" style="font-size: 10px;">PosgreSQL 源码</a> <a href="/tags/PostgreSQL/" style="font-size: 18px;">PostgreSQL</a> <a href="/tags/SQL/" style="font-size: 10px;">SQL</a> <a href="/tags/SQL%E4%BC%98%E5%8C%96/" style="font-size: 12px;">SQL优化</a> <a href="/tags/WAL%E6%97%A5%E5%BF%97/" style="font-size: 10px;">WAL日志</a> <a href="/tags/mysql/" style="font-size: 10px;">mysql</a> <a href="/tags/%E4%B8%BB%E4%BB%8E/" style="font-size: 10px;">主从</a> <a href="/tags/%E4%BC%98%E5%8C%96/" style="font-size: 16px;">优化</a> <a href="/tags/%E5%A4%87%E4%BB%BD%E6%81%A2%E5%A4%8D/" style="font-size: 10px;">备份恢复</a> <a href="/tags/%E5%A4%8D%E5%88%B6/" style="font-size: 12px;">复制</a> <a href="/tags/%E6%9F%A5%E8%AF%A2%E4%BC%98%E5%8C%96/" style="font-size: 10px;">查询优化</a> <a href="/tags/%E6%AD%BB%E9%94%81/" style="font-size: 14px;">死锁</a> <a href="/tags/%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF/" style="font-size: 12px;">统计信息</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/08/">August 2020</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/06/">June 2020</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">April 2020</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">February 2020</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/09/">September 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/08/">August 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/07/">July 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/06/">June 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/04/">April 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/03/">March 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/02/">February 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">August 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/07/">July 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/06/">June 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/04/">April 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/02/">February 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/01/">January 2018</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2020/08/17/hello-world/">Hello World</a>
+          </li>
+        
+          <li>
+            <a href="/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/">Innodb系统表-结构解析</a>
+          </li>
+        
+          <li>
+            <a href="/2020/06/08/MySQL%E4%B8%AD%E5%A6%82%E4%BD%95%E6%8E%A7%E5%88%B6SQL%E5%9C%A8%E6%B5%8B%E8%AF%95-%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E5%85%B7%E6%9C%89%E7%9B%B8%E5%90%8C%E7%9A%84%E6%89%A7%E8%A1%8C%E8%B7%AF%E5%BE%84/">MySQL中如何控制SQL在测试-生产环境具有相同的执行路径</a>
+          </li>
+        
+          <li>
+            <a href="/2020/04/04/RC%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB%E4%B8%8B%EF%BC%8C%E6%AD%BB%E9%94%81%E6%A1%88%E4%BE%8B%E5%88%86%E6%9E%90/">RC隔离级别下，死锁案例分析</a>
+          </li>
+        
+          <li>
+            <a href="/2020/02/27/MySQL%E5%A4%8D%E5%88%B6%E5%AE%89%E5%85%A8%E5%88%86%E6%9E%90/">MySQL复制安全分析</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      &copy; 2020 Dong Hong Yu<br>
+      Powered by <a href="http://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+<script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+
+
+  
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+  
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+  </div>
+</body>
+</html>

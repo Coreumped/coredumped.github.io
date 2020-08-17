@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+
+  
+  <title>MySQL统计信息相关表介绍 | 随便写写</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="description" content="MySQL统计信息相关表介绍MySQL中提供了两个表记录统计信息的相关内容,分别是innodb_table_stats与innodb_index_stats。 innodb_table_stats这个表里面的内容还是比较好理解 1234567[root@shadow:&#x2F;home&#x2F;mysql&#x2F;qdata_for_mysql 5.7.18-log_Instance1 root@localhost:(n">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MySQL统计信息相关表介绍">
+<meta property="og:url" content="http://yoursite.com/2018/02/11/MySQL%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF%E7%9B%B8%E5%85%B3%E8%A1%A8%E4%BB%8B%E7%BB%8D/index.html">
+<meta property="og:site_name" content="随便写写">
+<meta property="og:description" content="MySQL统计信息相关表介绍MySQL中提供了两个表记录统计信息的相关内容,分别是innodb_table_stats与innodb_index_stats。 innodb_table_stats这个表里面的内容还是比较好理解 1234567[root@shadow:&#x2F;home&#x2F;mysql&#x2F;qdata_for_mysql 5.7.18-log_Instance1 root@localhost:(n">
+<meta property="og:locale">
+<meta property="article:published_time" content="2018-02-11T07:28:34.000Z">
+<meta property="article:modified_time" content="2020-08-17T09:50:40.393Z">
+<meta property="article:author" content="Dong Hong Yu">
+<meta property="article:tag" content="MySQL">
+<meta property="article:tag" content="优化">
+<meta property="article:tag" content="统计信息">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="随便写写" type="application/atom+xml">
+  
+  
+    <link rel="icon" href="/favicon.png">
+  
+  
+    <link href="//fonts.googleapis.com/css?family=Source+Code+Pro" rel="stylesheet" type="text/css">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 5.0.2"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">随便写写</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://yoursite.com"></form>
+      </div>
+    </div>
+  </div>
+</header>
+      <div class="outer">
+        <section id="main"><article id="post-MySQL统计信息相关表介绍" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2018/02/11/MySQL%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF%E7%9B%B8%E5%85%B3%E8%A1%A8%E4%BB%8B%E7%BB%8D/" class="article-date">
+  <time datetime="2018-02-11T07:28:34.000Z" itemprop="datePublished">2018-02-11</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      MySQL统计信息相关表介绍
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h2 id="MySQL统计信息相关表介绍"><a href="#MySQL统计信息相关表介绍" class="headerlink" title="MySQL统计信息相关表介绍"></a>MySQL统计信息相关表介绍</h2><p>MySQL中提供了两个表记录统计信息的相关内容,分别是<br>innodb_table_stats与innodb_index_stats。</p>
+<h3 id="innodb-table-stats"><a href="#innodb-table-stats" class="headerlink" title="innodb_table_stats"></a>innodb_table_stats</h3><p>这个表里面的内容还是比较好理解</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">[root@shadow:/home/mysql/qdata_for_mysql 5.7.18-log_Instance1 root@localhost:(none) 14:03:33]&gt;select * from mysql.innodb_table_stats where table_name = &#x27;dhytest&#x27;;</span><br><span class="line">+<span class="comment">---------------+------------+---------------------+--------+----------------------+--------------------------+</span></span><br><span class="line">| database_name | table_name | last_update         | n_rows | clustered_index_size | sum_of_other_index_sizes |</span><br><span class="line">+<span class="comment">---------------+------------+---------------------+--------+----------------------+--------------------------+</span></span><br><span class="line">| test          | dhytest    | 2017-07-13 14:03:32 |     16 |                    1 |                        1 |</span><br><span class="line">+<span class="comment">---------------+------------+---------------------+--------+----------------------+--------------------------+</span></span><br><span class="line">1 row in <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br></pre></td></tr></table></figure>
+<p>重要的列:</p>
+<ul>
+<li>last_update 就是最后一次收集统计信息的时间</li>
+<li>clustered_index_size 聚集索引的page数量</li>
+<li>sum_of_other_index_sizes 非聚集索引的page数量</li>
+</ul>
+<p>通过这些信息我们可以算出聚集索引的大小:</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">[root@shadow:/home/mysql/qdata_for_mysql 5.7.18-log_Instance1 root@localhost:mysql 15:53:31]&gt;select (clustered_index_size*@@innodb_page_size)/1024/1024 as size from mysql.innodb_table_stats where table_name = &#x27;sbtest1&#x27;;</span><br><span class="line">+<span class="comment">--------------+</span></span><br><span class="line">| size         |</span><br><span class="line">+<span class="comment">--------------+</span></span><br><span class="line">| 107.62500000 |</span><br><span class="line">+<span class="comment">--------------+</span></span><br><span class="line">1 row in <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br></pre></td></tr></table></figure>
+
+
+<h3 id="innodb-index-stats"><a href="#innodb-index-stats" class="headerlink" title="innodb_index_stats"></a>innodb_index_stats</h3><p>这个表里面输出的内容相对会比较复杂一些<br>表结构和测试数据</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> t1 (</span><br><span class="line">  a <span class="built_in">INT</span>, b <span class="built_in">INT</span>, c <span class="built_in">INT</span>, d <span class="built_in">INT</span>, e <span class="built_in">INT</span>, f <span class="built_in">INT</span>,</span><br><span class="line">  PRIMARY <span class="keyword">KEY</span> (a, b), <span class="keyword">KEY</span> i1 (c, d), <span class="keyword">UNIQUE</span> <span class="keyword">KEY</span> i2uniq (e, f)</span><br><span class="line">) <span class="keyword">ENGINE</span>=<span class="keyword">INNODB</span>;</span><br><span class="line"></span><br><span class="line">[root@shadow:/home/mysql/qdata_for_mysql 5.7.18-log_Instance1 root@localhost:test 21:17:07]&gt;select * from t1;</span><br><span class="line">+<span class="comment">---+---+------+------+------+------+</span></span><br><span class="line">| a | b | c    | d    | e    | f    |</span><br><span class="line">+<span class="comment">---+---+------+------+------+------+</span></span><br><span class="line">| 1 | 1 |   10 |   11 |  100 |  101 |</span><br><span class="line">| 1 | 2 |   10 |   11 |  200 |  102 |</span><br><span class="line">| 1 | 3 |   10 |   11 |  100 |  103 |</span><br><span class="line">| 1 | 4 |   10 |   12 |  200 |  104 |</span><br><span class="line">| 1 | 5 |   10 |   12 |  100 |  105 |</span><br><span class="line">+<span class="comment">---+---+------+------+------+------+</span></span><br><span class="line">5 rows in <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br></pre></td></tr></table></figure>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">[root@shadow:/home/mysql/qdata_for_mysql 5.7.18-log_Instance1 root@localhost:test 21:16:41]&gt;select index_name,stat_name,stat_value,stat_description from mysql.innodb_index_stats where table_name = &#x27;t1&#x27;;</span><br><span class="line">+<span class="comment">------------+--------------+------------+-----------------------------------+</span></span><br><span class="line">| index_name | stat_name    | stat_value | stat_description                  |</span><br><span class="line">+<span class="comment">------------+--------------+------------+-----------------------------------+</span></span><br><span class="line">| PRIMARY    | n_diff_pfx01 |          1 | a                                 |</span><br><span class="line">| PRIMARY    | n_diff_pfx02 |          5 | a,b                               |</span><br><span class="line">| PRIMARY    | n_leaf_pages |          1 | Number of leaf pages in the index |</span><br><span class="line">| PRIMARY    | size         |          1 | Number of pages in the index      |</span><br><span class="line">| i1         | n_diff_pfx01 |          1 | c                                 |</span><br><span class="line">| i1         | n_diff_pfx02 |          2 | c,d                               |</span><br><span class="line">| i1         | n_diff_pfx03 |          2 | c,d,a                             |</span><br><span class="line">| i1         | n_diff_pfx04 |          5 | c,d,a,b                           |</span><br><span class="line">| i1         | n_leaf_pages |          1 | Number of leaf pages in the index |</span><br><span class="line">| i1         | size         |          1 | Number of pages in the index      |</span><br><span class="line">| i2uniq     | n_diff_pfx01 |          2 | e                                 |</span><br><span class="line">| i2uniq     | n_diff_pfx02 |          5 | e,f                               |</span><br><span class="line">| i2uniq     | n_leaf_pages |          1 | Number of leaf pages in the index |</span><br><span class="line">| i2uniq     | size         |          1 | Number of pages in the index      |</span><br><span class="line">+<span class="comment">------------+--------------+------------+-----------------------------------+</span></span><br><span class="line">14 rows in <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br></pre></td></tr></table></figure>
+<p>我们主要关注的的列:</p>
+<ul>
+<li><p>stat_value: 显示统计值的大小</p>
+</li>
+<li><p>stat_description:类型的描述</p>
+</li>
+<li><p>stat_name:此列显示统计的类型 , 会出现下面这些:</p>
+<ul>
+<li><p>size:此时stat_value显示索引的page数量</p>
+</li>
+<li><p>n_leaf_pages:此时stat_value显示叶子节点的数量</p>
+</li>
+<li><p>n_diff_pfxNN:显示索引字段上唯一值的忽略，这里需要特殊说明:</p>
+<ul>
+<li><p>主键索引与唯一索引 例如上面结果中index_name = PRIMARY时:</p>
+<ul>
+<li>index_name = PRIMARY 且 stat_name = n_diff_pfx01 则stat_value代表主键索引中第一列distinct之后的数量，从上面的例子我们看到stat_value是1，因为a这一列的值都是(1)</li>
+<li>index_name = PRIMARY 且 stat_name = n_diff_pfx02 则stat_value代表主键索引中第一列和第二列distinct之后的数量，从上面的例子我们看到stat_value是5，因为a,b两列存在的值是(1,1)(1,2)(1,3)(1,4)(1,5)</li>
+<li>stat_description中我们可以看到是那几个列的信息</li>
+<li>n_diff_pfxNN 以此类推</li>
+</ul>
+</li>
+<li><p>非唯一索引不同的地方是在原有的列之后会添加上主键索引，这样说可能比较难理解，针对上面查询出来的记过下面详细说明下:</p>
+<ul>
+<li><p>根据表结构定义我们知道i1是一个非唯一索引,是由(c,d)两个列组成的。我们根据上面的结果可以看到除了n_diff_pfx01,n_diff_pfx02又多出来了n_diff_pfx03,n_diff_pfx04 ,通过stat_description我们可以看到n_diff_pfx03,n_diff_pfx04是在原有的(c,d)两列上又多出了 (c,d,a) (c,d,a,b) 这里就是将主键索引添加到了这里。</p>
+</li>
+<li><p>例如 n_diff_pfx03 的stat_value是2 代表的就是在原有的非唯一索引上添加了主键索引的第一列(a), 这个时候distinct之后的值是2 所存在的值就是: (10,11,1) (10,12,1)</p>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p>通过这个表我们可以查看索引选择性如何，并且可以看到组合索引中每一列选择性如何，还可以计算索引的大小:</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span></span><br><span class="line"></span><br><span class="line">       stat_value pages,</span><br><span class="line">       index_name,</span><br><span class="line">       (stat_value * @@innodb_page_size)/<span class="number">1024</span>/<span class="number">1024</span> <span class="keyword">size</span></span><br><span class="line"><span class="keyword">FROM</span></span><br><span class="line">       mysql.innodb_index_stats</span><br><span class="line"><span class="keyword">WHERE</span></span><br><span class="line">           table_name = <span class="string">&#x27;sbtest1&#x27;</span></span><br><span class="line">       <span class="keyword">AND</span> database_name = <span class="string">&#x27;sbtest&#x27;</span></span><br><span class="line">       <span class="keyword">AND</span> stat_description = <span class="string">&#x27;Number of pages in the index&#x27;</span></span><br><span class="line">       <span class="keyword">AND</span> stat_name = <span class="string">&#x27;size&#x27;</span></span><br><span class="line"><span class="keyword">GROUP</span> <span class="keyword">BY</span></span><br><span class="line">       index_name;</span><br></pre></td></tr></table></figure>
+<p>如果是分区表则使用下面的语句:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">SELECT</span><br><span class="line">       stat_value pages,</span><br><span class="line">       index_name,</span><br><span class="line">       (sum(stat_value) * @@innodb_page_size)&#x2F;1024&#x2F;1024  size</span><br><span class="line">FROM</span><br><span class="line">       mysql.innodb_index_stats</span><br><span class="line">WHERE</span><br><span class="line">           table_name like &#39;t#P%&#39;</span><br><span class="line">       AND database_name &#x3D; &#39;test&#39;</span><br><span class="line">       AND stat_description &#x3D; &#39;Number of pages in the index&#39;</span><br><span class="line">       AND stat_name &#x3D; &#39;size&#39;</span><br><span class="line">GROUP BY</span><br><span class="line">       index_name;</span><br></pre></td></tr></table></figure>
+
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://yoursite.com/2018/02/11/MySQL%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF%E7%9B%B8%E5%85%B3%E8%A1%A8%E4%BB%8B%E7%BB%8D/" data-id="ckdyc8e3r000jrluu0v48bx65" class="article-share-link">Share</a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/MySQL/" rel="tag">MySQL</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E4%BC%98%E5%8C%96/" rel="tag">优化</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF/" rel="tag">统计信息</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2018/04/29/PostgreSQL%E4%B8%AD%E6%B7%BB%E5%8A%A0%E6%8F%92%E4%BB%B6/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          PostgreSQL中添加插件
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2018/02/11/MySQL%E4%B8%AD%E7%9A%84%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF%E7%9B%B8%E5%85%B3%E5%8F%82%E6%95%B0%E4%BB%8B%E7%BB%8D/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">MySQL中的统计信息相关参数介绍</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/Greenplum/" rel="tag">Greenplum</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Innodb/" rel="tag">Innodb</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Innodb-Lock/" rel="tag">Innodb Lock</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Linux/" rel="tag">Linux</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/MGR/" rel="tag">MGR</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/MVCC/" rel="tag">MVCC</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/MySQL/" rel="tag">MySQL</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/MySQL-Group-Replicaton/" rel="tag">MySQL Group Replicaton</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/PosgreSQL-%E6%BA%90%E7%A0%81/" rel="tag">PosgreSQL 源码</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/PostgreSQL/" rel="tag">PostgreSQL</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/SQL/" rel="tag">SQL</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/SQL%E4%BC%98%E5%8C%96/" rel="tag">SQL优化</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/WAL%E6%97%A5%E5%BF%97/" rel="tag">WAL日志</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/mysql/" rel="tag">mysql</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E4%B8%BB%E4%BB%8E/" rel="tag">主从</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E4%BC%98%E5%8C%96/" rel="tag">优化</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%A4%87%E4%BB%BD%E6%81%A2%E5%A4%8D/" rel="tag">备份恢复</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%A4%8D%E5%88%B6/" rel="tag">复制</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%9F%A5%E8%AF%A2%E4%BC%98%E5%8C%96/" rel="tag">查询优化</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%AD%BB%E9%94%81/" rel="tag">死锁</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF/" rel="tag">统计信息</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/Greenplum/" style="font-size: 10px;">Greenplum</a> <a href="/tags/Innodb/" style="font-size: 10px;">Innodb</a> <a href="/tags/Innodb-Lock/" style="font-size: 10px;">Innodb Lock</a> <a href="/tags/Linux/" style="font-size: 10px;">Linux</a> <a href="/tags/MGR/" style="font-size: 12px;">MGR</a> <a href="/tags/MVCC/" style="font-size: 10px;">MVCC</a> <a href="/tags/MySQL/" style="font-size: 20px;">MySQL</a> <a href="/tags/MySQL-Group-Replicaton/" style="font-size: 12px;">MySQL Group Replicaton</a> <a href="/tags/PosgreSQL-%E6%BA%90%E7%A0%81/" style="font-size: 10px;">PosgreSQL 源码</a> <a href="/tags/PostgreSQL/" style="font-size: 18px;">PostgreSQL</a> <a href="/tags/SQL/" style="font-size: 10px;">SQL</a> <a href="/tags/SQL%E4%BC%98%E5%8C%96/" style="font-size: 12px;">SQL优化</a> <a href="/tags/WAL%E6%97%A5%E5%BF%97/" style="font-size: 10px;">WAL日志</a> <a href="/tags/mysql/" style="font-size: 10px;">mysql</a> <a href="/tags/%E4%B8%BB%E4%BB%8E/" style="font-size: 10px;">主从</a> <a href="/tags/%E4%BC%98%E5%8C%96/" style="font-size: 16px;">优化</a> <a href="/tags/%E5%A4%87%E4%BB%BD%E6%81%A2%E5%A4%8D/" style="font-size: 10px;">备份恢复</a> <a href="/tags/%E5%A4%8D%E5%88%B6/" style="font-size: 12px;">复制</a> <a href="/tags/%E6%9F%A5%E8%AF%A2%E4%BC%98%E5%8C%96/" style="font-size: 10px;">查询优化</a> <a href="/tags/%E6%AD%BB%E9%94%81/" style="font-size: 14px;">死锁</a> <a href="/tags/%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF/" style="font-size: 12px;">统计信息</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/08/">August 2020</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/06/">June 2020</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">April 2020</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">February 2020</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/09/">September 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/08/">August 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/07/">July 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/06/">June 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/04/">April 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/03/">March 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/02/">February 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">August 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/07/">July 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/06/">June 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/04/">April 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/02/">February 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/01/">January 2018</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2020/08/17/hello-world/">Hello World</a>
+          </li>
+        
+          <li>
+            <a href="/2020/08/17/Innodb%E7%B3%BB%E7%BB%9F%E8%A1%A8-%E7%BB%93%E6%9E%84%E8%A7%A3%E6%9E%90/">Innodb系统表-结构解析</a>
+          </li>
+        
+          <li>
+            <a href="/2020/06/08/MySQL%E4%B8%AD%E5%A6%82%E4%BD%95%E6%8E%A7%E5%88%B6SQL%E5%9C%A8%E6%B5%8B%E8%AF%95-%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E5%85%B7%E6%9C%89%E7%9B%B8%E5%90%8C%E7%9A%84%E6%89%A7%E8%A1%8C%E8%B7%AF%E5%BE%84/">MySQL中如何控制SQL在测试-生产环境具有相同的执行路径</a>
+          </li>
+        
+          <li>
+            <a href="/2020/04/04/RC%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB%E4%B8%8B%EF%BC%8C%E6%AD%BB%E9%94%81%E6%A1%88%E4%BE%8B%E5%88%86%E6%9E%90/">RC隔离级别下，死锁案例分析</a>
+          </li>
+        
+          <li>
+            <a href="/2020/02/27/MySQL%E5%A4%8D%E5%88%B6%E5%AE%89%E5%85%A8%E5%88%86%E6%9E%90/">MySQL复制安全分析</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      &copy; 2020 Dong Hong Yu<br>
+      Powered by <a href="http://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+<script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+
+
+  
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+  
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+  </div>
+</body>
+</html>
